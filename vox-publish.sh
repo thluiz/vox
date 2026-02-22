@@ -30,7 +30,14 @@ if [[ "$SKIP_PULL" != "--skip-pull" ]]; then
   git -C "$VOX_DIR" pull --ff-only 2>/dev/null || true
 fi
 
-# 3. Build
+# 3. Copy config files (not symlinks — esbuild resolves symlink to real path
+#    breaking relative imports like "./quartz/plugins")
+echo "[vox] Syncing config files to Quartz..."
+cp "$VOX_DIR/quartz.config.ts" "$QUARTZ_DIR/quartz.config.ts"
+cp "$VOX_DIR/quartz.layout.ts" "$QUARTZ_DIR/quartz.layout.ts"
+cp "$VOX_DIR/custom.scss"      "$QUARTZ_DIR/quartz/styles/custom.scss"
+
+# 4. Build
 echo "[vox] Build Quartz..."
 cd "$QUARTZ_DIR"
 npx quartz build

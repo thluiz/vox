@@ -44,12 +44,13 @@ echo "[vox] npm install no Quartz..."
 cd "$QUARTZ_DIR"
 npm install
 
-# 4. Symlinks: config files vox → quartz root
-echo "[vox] Criando symlinks..."
-ln -sf "$VOX_DIR/quartz.config.ts"  "$QUARTZ_DIR/quartz.config.ts"
-ln -sf "$VOX_DIR/quartz.layout.ts"  "$QUARTZ_DIR/quartz.layout.ts"
+# 4. Copy config files into Quartz (symlinks break esbuild relative import resolution)
+#    Only content/ uses a symlink — markdown files don't have Node.js imports.
+echo "[vox] Copiando config files para Quartz..."
+cp "$VOX_DIR/quartz.config.ts" "$QUARTZ_DIR/quartz.config.ts"
+cp "$VOX_DIR/quartz.layout.ts" "$QUARTZ_DIR/quartz.layout.ts"
 mkdir -p "$QUARTZ_DIR/quartz/styles"
-ln -sf "$VOX_DIR/custom.scss"       "$QUARTZ_DIR/quartz/styles/custom.scss"
+cp "$VOX_DIR/custom.scss"      "$QUARTZ_DIR/quartz/styles/custom.scss"
 
 # 5. Symlink: content/ → vox-content
 # Remove link/dir anterior se existir
