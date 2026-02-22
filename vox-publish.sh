@@ -3,6 +3,12 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 
+# Ensure fnm Node is in PATH (for non-interactive shells / systemd services)
+FNM_NODE_BIN="${HOME}/.local/share/fnm/node-versions/v24.13.1/installation/bin"
+if [[ -d "$FNM_NODE_BIN" ]]; then
+  export PATH="$FNM_NODE_BIN:$PATH"
+fi
+
 # Carrega .env (não commitado)
 if [[ -f "$SCRIPT_DIR/.env" ]]; then
   # shellcheck source=/dev/null
