@@ -1,0 +1,56 @@
+diff --git a/quartz/components/ContentMeta.tsx b/quartz/components/ContentMeta.tsx
+index e378bcc..d054778 100644
+--- a/quartz/components/ContentMeta.tsx
++++ b/quartz/components/ContentMeta.tsx
+@@ -19,6 +19,37 @@ const defaultOptions: ContentMetaOptions = {
+   showComma: true,
+ }
+ 
++function BrazilFlag() {
++  return (
++    <svg class="lang-flag" viewBox="0 0 20 14" width="20" height="14" aria-label="Português">
++      <rect width="20" height="14" rx="1.5" fill="#009739"/>
++      <path d="M10 1.5 L18.5 7 L10 12.5 L1.5 7 Z" fill="#FFDF00"/>
++      <circle cx="10" cy="7" r="3" fill="#002776"/>
++    </svg>
++  )
++}
++
++function USFlag() {
++  return (
++    <svg class="lang-flag" viewBox="0 0 20 14" width="20" height="14" aria-label="English">
++      <rect width="20" height="14" rx="1.5" fill="#fff"/>
++      <rect y="0" width="20" height="1.077" fill="#B22234"/>
++      <rect y="2.154" width="20" height="1.077" fill="#B22234"/>
++      <rect y="4.308" width="20" height="1.077" fill="#B22234"/>
++      <rect y="6.462" width="20" height="1.077" fill="#B22234"/>
++      <rect y="8.615" width="20" height="1.077" fill="#B22234"/>
++      <rect y="10.769" width="20" height="1.077" fill="#B22234"/>
++      <rect y="12.923" width="20" height="1.077" fill="#B22234"/>
++      <rect width="8" height="7.538" fill="#3C3B6E"/>
++    </svg>
++  )
++}
++
++const LANG_FLAGS: Record<string, () => JSX.Element> = {
++  pt: BrazilFlag,
++  en: USFlag,
++}
++
+ export default ((opts?: Partial<ContentMetaOptions>) => {
+   // Merge options with defaults
+   const options: ContentMetaOptions = { ...defaultOptions, ...opts }
+@@ -29,6 +60,13 @@ export default ((opts?: Partial<ContentMetaOptions>) => {
+     if (text) {
+       const segments: (string | JSX.Element)[] = []
+ 
++      // Language flag from frontmatter
++      const lang = fileData.frontmatter?.lang as string | undefined
++      if (lang && LANG_FLAGS[lang]) {
++        const FlagComponent = LANG_FLAGS[lang]
++        segments.push(<span class="lang-flag-wrap"><FlagComponent /></span>)
++      }
++
+       if (fileData.dates) {
+         segments.push(<Date date={getDate(cfg, fileData)!} locale={cfg.locale} />)
+       }
