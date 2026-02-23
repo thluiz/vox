@@ -1,0 +1,31 @@
+diff --git a/quartz/components/styles/contentMeta.scss b/quartz/components/styles/contentMeta.scss
+index 2da2d6a..7d73193 100644
+--- a/quartz/components/styles/contentMeta.scss
++++ b/quartz/components/styles/contentMeta.scss
+@@ -3,7 +3,7 @@
+   color: var(--darkgray);
+ 
+   &[show-comma="true"] {
+-    > *:not(:last-child) {
++    > *:not(:last-child):not(.lang-flag-wrap) {
+       margin-right: 8px;
+ 
+       &::after {
+@@ -12,3 +12,17 @@
+     }
+   }
+ }
++
++.lang-flag-wrap {
++  display: inline-flex;
++  align-items: center;
++  margin-right: 8px;
++  vertical-align: middle;
++}
++
++.lang-flag {
++  display: inline-block;
++  vertical-align: middle;
++  border-radius: 2px;
++  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.15);
++}

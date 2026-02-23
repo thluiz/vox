@@ -1,3 +1,13 @@
 @use "./base.scss";
 
-// put your custom CSS here!
+// Fix: tags on folder/archive pages flow inline instead of one-per-line
+li.section-li > .section {
+  // Switch from 3-column grid to 2-column (date + content), tags below
+  grid-template-columns: fit-content(8em) 1fr !important;
+
+  & > .tags {
+    grid-column: 2; // align with the content column
+    margin-top: 0.2rem;
+    margin-bottom: 0;
+  }
+}

@@ -37,10 +37,48 @@ cp "$VOX_DIR/quartz.config.ts" "$QUARTZ_DIR/quartz.config.ts"
 cp "$VOX_DIR/quartz.layout.ts" "$QUARTZ_DIR/quartz.layout.ts"
 cp "$VOX_DIR/custom.scss"      "$QUARTZ_DIR/quartz/styles/custom.scss"
 
+# 3b. Apply Quartz patches (cosmetic/site-specific tweaks — see README)
+PATCHES_DIR="$VOX_DIR/patches"
+if [[ -d "$PATCHES_DIR" ]] && ls "$PATCHES_DIR"/*.patch &>/dev/null; then
+  echo "[vox] Applying Quartz patches..."
+  for p in "$PATCHES_DIR"/*.patch; do
+    if git -C "$QUARTZ_DIR" apply --check "$p" 2>/dev/null; then
+      git -C "$QUARTZ_DIR" apply "$p"
+      echo "  applied: $(basename "$p")"
+    else
+      echo "  FAILED: $(basename "$p") — patch does not apply cleanly" >&2
+      echo "  Quartz may have been updated. Regenerate the patch." >&2
+      exit 1
+    fi
+  done
+fi
+
 # 4. Build
 echo "[vox] Build Quartz..."
 cd "$QUARTZ_DIR"
+
+# Atualiza home page (publicações recentes + top tags) — sem IA
+python3 "$SCRIPT_DIR/update-vox-home.py"
+
+# Commita index.md se foi alterado pelo update-vox-home
+if ! git -C "$CONTENT_DIR" diff --quiet index.md 2>/dev/null; then
+  git -C "$CONTENT_DIR" add index.md
+  git -C "$CONTENT_DIR" commit -m "chore: update index.md (top tags + recent posts)" --quiet
+  git -C "$CONTENT_DIR" push --quiet
+fi
+
 npx quartz build
+
+# Copy root-level static files (Quartz puts static/ → public/static/, not root)
+cp "$QUARTZ_DIR/quartz/static/robots.txt" "$QUARTZ_DIR/public/robots.txt" 2>/dev/null || true
+
+# 4b. Revert patches (keep Quartz checkout clean for future git pull)
+if [[ -d "$PATCHES_DIR" ]] && ls "$PATCHES_DIR"/*.patch &>/dev/null; then
+  echo "[vox] Reverting Quartz patches..."
+  for p in "$PATCHES_DIR"/*.patch; do
+    git -C "$QUARTZ_DIR" apply --reverse "$p" 2>/dev/null || true
+  done
+fi
 
 # 4. Deploy — Azure Static Web Apps
 echo "[vox] Deploy Azure SWA..."
