@@ -16,7 +16,6 @@ const config: QuartzConfig = {
     baseUrl: "vox.thluiz.com",
     ignorePatterns: ["private", "_private", "*.private.md", ".obsidian", ".trash"],
     defaultDateType: "published",
-    generateSocialImages: false,
     theme: {
       fontOrigin: "googleFonts",
       cdnCaching: true,
@@ -84,6 +83,7 @@ const config: QuartzConfig = {
       }),
       Plugin.Assets(),
       Plugin.Static(),
+      Plugin.CustomOgImages({ colorScheme: "darkMode" }),
       Plugin.NotFoundPage(),
     ],
   },
