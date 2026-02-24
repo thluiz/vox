@@ -106,8 +106,9 @@ def collect_posts():
 
 
 def display_title(title: str) -> str:
-    """Remove episode number prefix (#82, #447, etc.) from title for display."""
-    return re.sub(r"^#\d+\s+", "", title).strip()
+    """Remove episode number prefix (#82, #447, etc.) and sanitize for wikilinks."""
+    cleaned = re.sub(r"^#\d+\s+", "", title).strip()
+    return cleaned.replace("|", "—")
 
 
 def build_recent_section(recent_posts):
