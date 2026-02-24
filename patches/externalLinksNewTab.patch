@@ -1,0 +1,12 @@
+diff --git a/quartz/plugins/transformers/links.ts b/quartz/plugins/transformers/links.ts
+index f4451d9..78e8d4b 100644
+--- a/quartz/plugins/transformers/links.ts
++++ b/quartz/plugins/transformers/links.ts
+@@ -96,6 +96,7 @@ export const CrawlLinks: QuartzTransformerPlugin<Partial<Options>> = (userOpts)
+ 
+                 if (isExternal && opts.openLinksInNewTab) {
+                   node.properties.target = "_blank"
++                  node.properties.rel = "noopener noreferrer"
+                 }
+ 
+                 // don't process external links or intra-document anchors
