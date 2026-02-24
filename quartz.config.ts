@@ -14,7 +14,7 @@ const config: QuartzConfig = {
     analytics: null,
     locale: "pt-BR",
     baseUrl: "vox.thluiz.com",
-    ignorePatterns: ["private", "_private", "*.private.md", ".obsidian", ".trash"],
+    ignorePatterns: ["private", "_private", "*.private.md", ".obsidian", ".trash", "README.md"],
     defaultDateType: "published",
     theme: {
       fontOrigin: "googleFonts",
