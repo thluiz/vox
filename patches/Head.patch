@@ -1,12 +1,10 @@
 diff --git a/quartz/components/Head.tsx b/quartz/components/Head.tsx
-index 23183ca..6a6f992 100644
+index 23183ca..a743295 100644
 --- a/quartz/components/Head.tsx
 +++ b/quartz/components/Head.tsx
-@@ -52,8 +52,10 @@ export default (() => {
-         )}
+@@ -53,7 +53,8 @@ export default (() => {
          <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossOrigin="anonymous" />
          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-+        <meta name="robots" content="noindex, nofollow" />
  
 -        <meta name="og:site_name" content={cfg.pageTitle}></meta>
 +        <meta property="og:site_name" content={cfg.pageTitle}></meta>
