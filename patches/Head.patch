@@ -1,5 +1,5 @@
 diff --git a/quartz/components/Head.tsx b/quartz/components/Head.tsx
-index 23183ca..4dcc431 100644
+index 23183ca..6a6f992 100644
 --- a/quartz/components/Head.tsx
 +++ b/quartz/components/Head.tsx
 @@ -52,8 +52,10 @@ export default (() => {
@@ -8,7 +8,8 @@ index 23183ca..4dcc431 100644
          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 +        <meta name="robots" content="noindex, nofollow" />
  
-         <meta name="og:site_name" content={cfg.pageTitle}></meta>
+-        <meta name="og:site_name" content={cfg.pageTitle}></meta>
++        <meta property="og:site_name" content={cfg.pageTitle}></meta>
 +        <meta property="fb:app_id" content="1885135262369297" />
          <meta property="og:title" content={title} />
          <meta property="og:type" content="website" />
