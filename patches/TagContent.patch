@@ -1,0 +1,28 @@
+diff --git a/quartz/components/pages/TagContent.tsx b/quartz/components/pages/TagContent.tsx
+index a1df6e1..0d838f4 100644
+--- a/quartz/components/pages/TagContent.tsx
++++ b/quartz/components/pages/TagContent.tsx
+@@ -12,10 +12,12 @@ import { concatenateResources } from "../../util/resources"
+ interface TagContentOptions {
+   sort?: SortFn
+   numPages: number
++  hideTags?: string[]
+ }
+ 
+ const defaultOptions: TagContentOptions = {
+   numPages: 10,
++  hideTags: [],
+ }
+ 
+ export default ((opts?: Partial<TagContentOptions>) => {
+@@ -47,7 +49,9 @@ export default ((opts?: Partial<TagContentOptions>) => {
+         ...new Set(
+           allFiles.flatMap((data) => data.frontmatter?.tags ?? []).flatMap(getAllSegmentPrefixes),
+         ),
+-      ].sort((a, b) => a.localeCompare(b))
++      ]
++        .filter((t) => !(options.hideTags ?? []).includes(t))
++        .sort((a, b) => a.localeCompare(b))
+       const tagItemMap: Map<string, QuartzPluginData[]> = new Map()
+       for (const tag of tags) {
+         tagItemMap.set(tag, allPagesWithTag(tag))

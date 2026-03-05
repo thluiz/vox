@@ -31,7 +31,7 @@ export const defaultContentPageLayout: PageLayout = {
     Component.Graph({
       localGraph: {
         showTags: true,
-        removeTags: [],
+        removeTags: ["developer-tea"],
         depth: 2,
         scale: 1.1,
         opacityScale: 1,
@@ -43,7 +43,7 @@ export const defaultContentPageLayout: PageLayout = {
       },
       globalGraph: {
         showTags: true,
-        removeTags: [],
+        removeTags: ["developer-tea"],
         scale: 0.9,
         repelForce: 0.5,
         centerForce: 0.3,
