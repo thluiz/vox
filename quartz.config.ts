@@ -83,7 +83,7 @@ const config: QuartzConfig = {
       }),
       Plugin.Assets(),
       Plugin.Static(),
-      Plugin.CustomOgImages({ colorScheme: "darkMode" }),
+      // Plugin.CustomOgImages({ colorScheme: "darkMode" }),
       Plugin.NotFoundPage(),
     ],
   },
