@@ -41,6 +41,11 @@ cp "$VOX_DIR/custom.scss"      "$QUARTZ_DIR/quartz/styles/custom.scss"
 PATCHES_DIR="$VOX_DIR/patches"
 if [[ -d "$PATCHES_DIR" ]] && ls "$PATCHES_DIR"/*.patch &>/dev/null; then
   echo "[vox] Applying Quartz patches..."
+  # Revert first — in case previous run failed after applying but before reverting
+  for p in "$PATCHES_DIR"/*.patch; do
+    git -C "$QUARTZ_DIR" apply --reverse "$p" 2>/dev/null || true
+  done
+  # Apply fresh
   for p in "$PATCHES_DIR"/*.patch; do
     if git -C "$QUARTZ_DIR" apply --check "$p" 2>/dev/null; then
       git -C "$QUARTZ_DIR" apply "$p"
