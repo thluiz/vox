@@ -1,0 +1,40 @@
+diff --git a/quartz/components/scripts/graph.inline.ts b/quartz/components/scripts/graph.inline.ts
+index a669b05..0163cef 100644
+--- a/quartz/components/scripts/graph.inline.ts
++++ b/quartz/components/scripts/graph.inline.ts
+@@ -122,6 +122,16 @@ async function renderGraph(graph: HTMLElement, fullSlug: FullSlug) {
+     }
+   }
+ 
++  // Exclude content nodes tagged with any removeTags entry
++  const excludedSlugs = new Set<SimpleSlug>()
++  if (removeTags.length > 0) {
++    for (const [id, details] of data.entries()) {
++      if ((details.tags ?? []).some((tag) => removeTags.includes(tag))) {
++        excludedSlugs.add(id)
++      }
++    }
++  }
++
+   const neighbourhood = new Set<SimpleSlug>()
+   const wl: (SimpleSlug | "__SENTINEL")[] = [slug, "__SENTINEL"]
+   if (depth >= 0) {
+@@ -132,6 +142,7 @@ async function renderGraph(graph: HTMLElement, fullSlug: FullSlug) {
+         depth--
+         wl.push("__SENTINEL")
+       } else {
++        if (excludedSlugs.has(cur)) continue
+         neighbourhood.add(cur)
+         const outgoing = links.filter((l) => l.source === cur)
+         const incoming = links.filter((l) => l.target === cur)
+@@ -139,7 +150,9 @@ async function renderGraph(graph: HTMLElement, fullSlug: FullSlug) {
+       }
+     }
+   } else {
+-    validLinks.forEach((id) => neighbourhood.add(id))
++    validLinks.forEach((id) => {
++      if (!excludedSlugs.has(id)) neighbourhood.add(id)
++    })
+     if (showTags) tags.forEach((tag) => neighbourhood.add(tag))
+   }
+ 
