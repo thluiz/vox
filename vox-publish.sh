@@ -92,4 +92,8 @@ swa deploy ./public \
   --deployment-token "$AZURE_SWA_TOKEN" \
   --env production
 
+# Push vox-content (episodios commitados pelo WriteFilesWorker)
+echo "[vox] Pushing vox-content..."
+git -C "$CONTENT_DIR" push
+
 echo "[vox] Publicado com sucesso!"
