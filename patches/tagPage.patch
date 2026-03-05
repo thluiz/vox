@@ -1,0 +1,27 @@
+diff --git a/quartz/plugins/emitters/tagPage.tsx b/quartz/plugins/emitters/tagPage.tsx
+index 5f23893..c6607da 100644
+--- a/quartz/plugins/emitters/tagPage.tsx
++++ b/quartz/plugins/emitters/tagPage.tsx
+@@ -15,6 +15,7 @@ import { StaticResources } from "../../util/resources"
+ 
+ interface TagPageOptions extends FullPageLayout {
+   sort?: (f1: QuartzPluginData, f2: QuartzPluginData) => number
++  hideTags?: string[]
+ }
+ 
+ function computeTagInfo(
+@@ -94,11 +95,12 @@ async function processTagPage(
+ }
+ 
+ export const TagPage: QuartzEmitterPlugin<Partial<TagPageOptions>> = (userOpts) => {
++  const { sort, hideTags, ...restUserOpts } = userOpts ?? {}
+   const opts: FullPageLayout = {
+     ...sharedPageComponents,
+     ...defaultListPageLayout,
+-    pageBody: TagContent({ sort: userOpts?.sort }),
+-    ...userOpts,
++    pageBody: TagContent({ sort, hideTags }),
++    ...restUserOpts,
+   }
+ 
+   const { head: Head, header, beforeBody, pageBody, afterBody, left, right, footer: Footer } = opts

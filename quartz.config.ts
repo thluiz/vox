@@ -76,7 +76,7 @@ const config: QuartzConfig = {
       Plugin.ComponentResources(),
       Plugin.ContentPage(),
       Plugin.FolderPage(),
-      Plugin.TagPage(),
+      Plugin.TagPage({ hideTags: ["developer-tea"] }),
       Plugin.ContentIndex({
         enableSiteMap: true,
         enableRSS: true,
