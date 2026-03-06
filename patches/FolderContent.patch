@@ -1,0 +1,83 @@
+diff --git a/quartz/components/pages/FolderContent.tsx b/quartz/components/pages/FolderContent.tsx
+index afd4f5d..e7a622d 100644
+--- a/quartz/components/pages/FolderContent.tsx
++++ b/quartz/components/pages/FolderContent.tsx
+@@ -9,6 +9,7 @@ import { QuartzPluginData } from "../../plugins/vfile"
+ import { ComponentChildren } from "preact"
+ import { concatenateResources } from "../../util/resources"
+ import { trieFromAllFiles } from "../../util/ctx"
++import { FileTrieNode } from "../../util/fileTrie"
+ 
+ interface FolderContentOptions {
+   /**
+@@ -24,6 +25,12 @@ const defaultOptions: FolderContentOptions = {
+   showSubfolders: true,
+ }
+ 
++/** Recursively collect all leaf (non-folder) file data from a trie subtree. */
++function getAllLeafFiles(node: FileTrieNode<QuartzPluginData>): QuartzPluginData[] {
++  if (!node.isFolder && node.data) return [node.data]
++  return node.children.flatMap((child) => getAllLeafFiles(child as FileTrieNode<QuartzPluginData>))
++}
++
+ export default ((opts?: Partial<FolderContentOptions>) => {
+   const options: FolderContentOptions = { ...defaultOptions, ...opts }
+ 
+@@ -36,32 +43,34 @@ export default ((opts?: Partial<FolderContentOptions>) => {
+       return null
+     }
+ 
+-    const allPagesInFolder: QuartzPluginData[] =
+-      folder.children
++    // If all direct children are folders (year/month pages), collect leaf articles recursively.
++    // If direct children include leaf files (week pages), show them directly.
++    const hasDirectLeafFiles = folder.children.some((n) => !n.isFolder && n.data)
++
++    let allPagesInFolder: QuartzPluginData[]
++
++    if (hasDirectLeafFiles) {
++      // Week page or flat folder: list direct children as before
++      allPagesInFolder = folder.children
+         .map((node) => {
+-          // regular file, proceed
+           if (node.data) {
+             return node.data
+           }
+ 
+           if (node.isFolder && options.showSubfolders) {
+-            // folders that dont have data need synthetic files
+             const getMostRecentDates = (): QuartzPluginData["dates"] => {
+               let maybeDates: QuartzPluginData["dates"] | undefined = undefined
+               for (const child of node.children) {
+                 if (child.data?.dates) {
+-                  // compare all dates and assign to maybeDates if its more recent or its not set
+                   if (!maybeDates) {
+                     maybeDates = { ...child.data.dates }
+                   } else {
+                     if (child.data.dates.created > maybeDates.created) {
+                       maybeDates.created = child.data.dates.created
+                     }
+-
+                     if (child.data.dates.modified > maybeDates.modified) {
+                       maybeDates.modified = child.data.dates.modified
+                     }
+-
+                     if (child.data.dates.published > maybeDates.published) {
+                       maybeDates.published = child.data.dates.published
+                     }
+@@ -87,7 +96,14 @@ export default ((opts?: Partial<FolderContentOptions>) => {
+             }
+           }
+         })
+-        .filter((page) => page !== undefined) ?? []
++        .filter((page) => page !== undefined) as QuartzPluginData[]
++    } else {
++      // Year or month page: collect all leaf articles recursively, sorted by published desc
++      allPagesInFolder = folder.children.flatMap((child) =>
++        getAllLeafFiles(child as FileTrieNode<QuartzPluginData>),
++      )
++    }
++
+     const cssClasses: string[] = fileData.frontmatter?.cssclasses ?? []
+     const classes = cssClasses.join(" ")
+     const listProps = {
