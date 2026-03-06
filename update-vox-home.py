@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """update-vox-home.py — atualiza index.md com publicações recentes e top tags"""
 
+import os
 import re
 import sys
 from collections import Counter
 from pathlib import Path
 
-CONTENT_DIR = Path("/home/hermes/vox-content")
+CONTENT_DIR = Path(os.environ.get("CONTENT_DIR", "/home/hermes/vox-content"))
 INDEX_MD    = CONTENT_DIR / "index.md"
 N_RECENT    = 10
 N_TOP_TAGS  = 10
