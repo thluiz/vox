@@ -22,9 +22,15 @@ if (Test-Path $envFile) {
     }
 }
 
-if (-not $env:AZURE_SWA_TOKEN) {
-    throw "AZURE_SWA_TOKEN nao definido — verifique E:\vox\.env"
+if (-not $env:AWS_ACCESS_KEY_ID -or -not $env:AWS_SECRET_ACCESS_KEY) {
+    throw "AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY nao definidos — verifique E:\vox\.env"
 }
+if (-not $env:AWS_CF_DISTRIBUTION_ID) {
+    throw "AWS_CF_DISTRIBUTION_ID nao definido — verifique E:\vox\.env"
+}
+
+$env:AWS_DEFAULT_REGION = if ($env:AWS_REGION) { $env:AWS_REGION } else { "sa-east-1" }
+$aws = 'C:\Program Files\Amazon\AWSCLIV2\aws.exe'
 
 if (-not $SkipPull) {
     Write-Host "[vox] Atualizando vox-content..."
@@ -89,8 +95,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # Copiar ficheiros estáticos raiz
-Copy-Item "$QUARTZ_DIR\quartz\static\robots.txt"              "$QUARTZ_DIR\public\robots.txt"              -Force -ErrorAction SilentlyContinue
-Copy-Item "$QUARTZ_DIR\quartz\static\staticwebapp.config.json" "$QUARTZ_DIR\public\staticwebapp.config.json" -Force -ErrorAction SilentlyContinue
+Copy-Item "$QUARTZ_DIR\quartz\static\robots.txt" "$QUARTZ_DIR\public\robots.txt" -Force -ErrorAction SilentlyContinue
 
 # Reverter patches
 if ($patches) {
@@ -100,13 +105,18 @@ if ($patches) {
     }
 }
 
-# Deploy Azure SWA
-Write-Host "[vox] Deploy Azure SWA..."
-Set-Location $QUARTZ_DIR
-swa deploy "$QUARTZ_DIR\public" `
-    --swa-config-location "$QUARTZ_DIR\public" `
-    --deployment-token $env:AZURE_SWA_TOKEN `
-    --env production
+# Deploy S3 + CloudFront
+Write-Host "[vox] Sync para S3..."
+& $aws s3 sync "$QUARTZ_DIR\public" s3://hermes-vox-br `
+    --delete `
+    --cache-control "public, max-age=3600" `
+    --exclude "*.DS_Store"
+if ($LASTEXITCODE -ne 0) { throw "[vox] aws s3 sync falhou" }
+
+Write-Host "[vox] Invalidando cache CloudFront..."
+& $aws cloudfront create-invalidation `
+    --distribution-id $env:AWS_CF_DISTRIBUTION_ID `
+    --paths "/*" | Out-Null
 
 # Push vox-content
 Write-Host "[vox] Pushing vox-content..."
