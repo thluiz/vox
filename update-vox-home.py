@@ -31,7 +31,7 @@ def parse_frontmatter(text):
     result["_raw"] = fm_block
 
     # published (pode ter ou não aspas: published: 2025-05-28 ou published: "2025-05-28")
-    m = re.search(r'^published:\s*"?(\d{4}-\d{2}-\d{2})"?\s*$', fm_block, re.MULTILINE)
+    m = re.search(r'^published:\s*["\']?(\d{4}-\d{2}-\d{2})', fm_block, re.MULTILINE)
     if m:
         result["published"] = m.group(1)
 
@@ -41,16 +41,16 @@ def parse_frontmatter(text):
         result["title"] = m.group(1).strip().strip('"')
 
     # tags: só as que estão sob "tags:" (não aliases, participants, etc.)
-    tags_match = re.search(r"^tags:\n((?:\s+-\s+.+\n?)+)", fm_block, re.MULTILINE)
+    tags_match = re.search(r"^tags:\n((?:\s*-\s+.+\n?)+)", fm_block, re.MULTILINE)
     if tags_match:
-        result["tags"] = re.findall(r"^\s+-\s+(.+)$", tags_match.group(1), re.MULTILINE)
+        result["tags"] = re.findall(r"^\s*-\s+(.+)$", tags_match.group(1), re.MULTILINE)
     else:
         result["tags"] = []
 
     # participants: lista sob "participants:"
-    participants_match = re.search(r"^participants:\n((?:\s+-\s+.+\n?)+)", fm_block, re.MULTILINE)
+    participants_match = re.search(r"^participants:\n((?:\s*-\s+.+\n?)+)", fm_block, re.MULTILINE)
     if participants_match:
-        result["participants"] = re.findall(r"^\s+-\s+\"?(.+?)\"?\s*$", participants_match.group(1), re.MULTILINE)
+        result["participants"] = re.findall(r"^\s*-\s+\"?(.+?)\"?\s*$", participants_match.group(1), re.MULTILINE)
     else:
         result["participants"] = []
 
@@ -77,13 +77,13 @@ def collect_posts():
     for year_dir in sorted(CONTENT_DIR.iterdir()):
         if not year_dir.is_dir() or not YEAR_DIR_RE.match(year_dir.name):
             continue
-        for md_file in sorted(year_dir.glob("*.md")):
+        for md_file in sorted(year_dir.glob("**/*.md")):
             text = md_file.read_text(encoding="utf-8")
             fm, _ = parse_frontmatter(text)
             if not fm.get("published"):
                 continue  # draft / sem data
 
-            link_path = f"{year_dir.name}/{md_file.stem}"
+            link_path = "/".join([year_dir.name] + list(md_file.relative_to(year_dir).with_suffix('').parts))
             title     = fm.get("title", md_file.stem)
             published = fm["published"]
 
@@ -111,6 +111,7 @@ def display_title(title: str) -> str:
     cleaned = re.sub(r"^#\d+\s+", "", title).strip()
     cleaned = cleaned.replace("|", "—")
     cleaned = re.sub(r"#(\d)", r"No.\1", cleaned)
+    cleaned = cleaned.replace("#", "♯")
     return cleaned
 
 

@@ -76,7 +76,17 @@ if ($LASTEXITCODE -ne 0) {
     git -C $CONTENT_DIR push --quiet
 }
 
+# Limpar public antes do build para evitar EBUSY (Windows Search/Defender bloqueando ficheiros antigos)
+$publicDir = "$QUARTZ_DIR\public"
+if (Test-Path $publicDir) {
+    Write-Host "[vox] Limpando public/..."
+    Remove-Item $publicDir -Recurse -Force -ErrorAction SilentlyContinue
+}
+
 npx quartz build
+if ($LASTEXITCODE -ne 0) {
+    throw "[vox] Build falhou (exit $LASTEXITCODE) — abortando deploy"
+}
 
 # Copiar ficheiros estáticos raiz
 Copy-Item "$QUARTZ_DIR\quartz\static\robots.txt"              "$QUARTZ_DIR\public\robots.txt"              -Force -ErrorAction SilentlyContinue
