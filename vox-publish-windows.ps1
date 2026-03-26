@@ -7,7 +7,13 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# Logging — redirige todo o output para ficheiro com timestamp
 $VOX_DIR      = "E:\vox"
+$logDir = Join-Path $VOX_DIR "logs"
+if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
+$logFile = Join-Path $logDir ("vox-publish-{0}.log" -f (Get-Date -Format 'yyyy-MM-dd_HHmmss'))
+Start-Transcript -Path $logFile -Force | Out-Null
+try {
 $QUARTZ_DIR   = "E:\quartz"
 $CONTENT_DIR  = "E:\vox-content"
 $SCRIPTS_DIR  = $VOX_DIR
@@ -299,4 +305,16 @@ if ($toUpload.Count -eq 0 -and $toDelete.Count -eq 0) {
     Invoke-RestMethod -Uri $gossipUrl -Method Post `
         -Headers @{ 'X-Api-Key' = $gossipKey; 'Content-Type' = 'application/json' } `
         -Body ([System.Text.Encoding]::UTF8.GetBytes((@{ message = $msg; parse_mode = 'HTML' } | ConvertTo-Json -Compress))) | Out-Null
+}
+
+} catch {
+    Write-Error "FATAL: $_"
+    Write-Error $_.ScriptStackTrace
+    throw
+} finally {
+    Stop-Transcript | Out-Null
+    # Limpar logs com mais de 7 dias
+    Get-ChildItem (Join-Path $VOX_DIR "logs") -Filter "vox-publish-*.log" |
+        Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-7) } |
+        Remove-Item -Force -ErrorAction SilentlyContinue
 }
