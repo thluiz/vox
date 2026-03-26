@@ -3,3 +3,4 @@
 .env.*
 !.env.example
 .claude/settings.local.json
+logs/
