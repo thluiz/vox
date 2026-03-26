@@ -1,6 +1,29 @@
 import { PageLayout, SharedLayout } from "./quartz/cfg"
 import * as Component from "./quartz/components"
 
+const explorerOpts = {
+  mapFn: (node: any) => {
+    // Ano: promover semanas dos meses para filhos diretos
+    if (node.isFolder && /^\d{4}$/.test(node.slugSegment)) {
+      const weeks: any[] = []
+      for (const child of node.children) {
+        if (child.isFolder && /^\d{2}$/.test(child.slugSegment)) {
+          weeks.push(...child.children)
+        } else {
+          weeks.push(child)
+        }
+      }
+      node.children = weeks
+    }
+    // Semana: mostrar count e esconder episódios
+    if (node.isFolder && /^W\d+$/.test(node.slugSegment)) {
+      const count = node.children.filter((c: any) => !c.isFolder).length
+      node.displayName = node.slugSegment + " (" + count + ")"
+      node.children = []
+    }
+  },
+}
+
 // Components shared across all pages
 export const sharedPageComponents: SharedLayout = {
   head: Component.Head(),
@@ -25,7 +48,7 @@ export const defaultContentPageLayout: PageLayout = {
     Component.MobileOnly(Component.Spacer()),
     Component.Search(),
     Component.Darkmode(),
-    Component.Explorer(),
+    Component.Explorer(explorerOpts),
   ],
   right: [
     Component.Graph({
@@ -70,7 +93,7 @@ export const defaultListPageLayout: PageLayout = {
     Component.MobileOnly(Component.Spacer()),
     Component.Search(),
     Component.Darkmode(),
-    Component.Explorer(),
+    Component.Explorer(explorerOpts),
   ],
   right: [],
 }

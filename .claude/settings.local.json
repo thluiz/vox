@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash($env:CONTENT_DIR =:*)",
-      "Bash(pwsh:*)"
-    ]
-  }
-}

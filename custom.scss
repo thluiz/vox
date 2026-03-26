@@ -59,6 +59,16 @@ li.section-li > .section {
   }
 }
 
+// Hide collapse arrow and empty container on leaf folders (weeks with no children)
+li:has(> .folder-outer > ul.content:empty) {
+  > .folder-container > .folder-icon {
+    display: none !important;
+  }
+  > .folder-outer {
+    display: none !important;
+  }
+}
+
 // Explorer scrollbar: visible only on hover + bottom fade hint
 .explorer {
   // Webkit (Chrome, Edge, Safari)
