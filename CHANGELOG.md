@@ -9,6 +9,26 @@ tag clouds, OG images, and an explorer sidebar organised by year/week.
 
 ---
 
+## 2026-04-04
+
+### Patches — auditoria e alterações
+
+| Patch | Ficheiro alvo | Antes | Agora |
+|---|---|---|---|
+| **ContentMeta.patch** | `ContentMeta.tsx` + `contentMeta.scss` | Bandeiras BR/US ao lado da data conforme `lang` no frontmatter | Sem alteração |
+| **contentMeta-scss.patch** | `contentMeta.scss` | Estilos para bandeiras (`.lang-flag-wrap`, `.lang-flag`) | Sem alteração |
+| **FolderContent.patch** | `FolderContent.tsx` | Páginas de ano/mês listam artigos recursivamente (não só filhos directos) | Sem alteração |
+| **Head.patch** | `Head.tsx` | `noindex`/`nofollow`, `og:site_name` como `property`, `fb:app_id` | Sem alteração |
+| **ogImage.patch** | `ogImage.tsx` | OG images em PNG (não WebP), ordem correcta dos meta tags, fix `getFileExtension` | Sem alteração |
+| **tagPage.patch** | `tagPage.tsx` | Passa `hideTags`/`minEntries` para `TagContent`, filtra tags com < N entries no emitter | Sem alteração |
+| **TagContent.patch** | `TagContent.tsx` | `hideTags` + `minEntries` filtro; página index mostrava `<h2>` + `<PageList>` (10 posts por tag) | **Index compacto**: só nome da tag + contagem com link, sem listar posts (reduziu `/tags/index.html` de 31MB para ~poucos KB) |
+| **graph.patch** | `graph.inline.ts` | `excludedSlugs` via `removeTags` (filtra nós do graph por tag) | **+ Skip graph no mobile/tablet** (`window.innerWidth < 1024` → return imediato, zero processamento d3/pixi/fetch) |
+
+### Outras alterações
+
+- **`render-from-json.py`** (HermesTools): transcript removido do MD renderizado — reduz peso das páginas de episódio
+- **Skill `slice-podcast`** criada: corte de trechos de áudio de episódios com ffmpeg
+
 ## 2026-03-26
 
 - Flatten explorer hierarchy: weeks are promoted directly under year nodes
