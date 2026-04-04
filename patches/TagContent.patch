@@ -1,5 +1,5 @@
 diff --git a/quartz/components/pages/TagContent.tsx b/quartz/components/pages/TagContent.tsx
-index a1df6e1..1804b03 100644
+index a1df6e1..739da9d 100644
 --- a/quartz/components/pages/TagContent.tsx
 +++ b/quartz/components/pages/TagContent.tsx
 @@ -12,10 +12,14 @@ import { concatenateResources } from "../../util/resources"
@@ -29,3 +29,37 @@ index a1df6e1..1804b03 100644
        const tagItemMap: Map<string, QuartzPluginData[]> = new Map()
        for (const tag of tags) {
          tagItemMap.set(tag, allPagesWithTag(tag))
+@@ -78,29 +85,10 @@ export default ((opts?: Partial<TagContentOptions>) => {
+               const href = resolveRelative(fileData.slug!, tagListingPage)
+ 
+               return (
+-                <div>
+-                  <h2>
+-                    <a class="internal tag-link" href={href}>
+-                      {tag}
+-                    </a>
+-                  </h2>
+-                  {content && <p>{content}</p>}
+-                  <div class="page-listing">
+-                    <p>
+-                      {i18n(cfg.locale).pages.tagContent.itemsUnderTag({ count: pages.length })}
+-                      {pages.length > options.numPages && (
+-                        <>
+-                          {" "}
+-                          <span>
+-                            {i18n(cfg.locale).pages.tagContent.showingFirst({
+-                              count: options.numPages,
+-                            })}
+-                          </span>
+-                        </>
+-                      )}
+-                    </p>
+-                    <PageList limit={options.numPages} {...listProps} sort={options?.sort} />
+-                  </div>
++                <div class="tag-index-entry">
++                  <a class="internal tag-link" href={href}>
++                    {tag} <span class="tag-count">({pages.length})</span>
++                  </a>
+                 </div>
+               )
+             })}

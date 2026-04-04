@@ -1,5 +1,5 @@
 diff --git a/quartz/components/scripts/graph.inline.ts b/quartz/components/scripts/graph.inline.ts
-index a669b05..0163cef 100644
+index a669b05..abf80cd 100644
 --- a/quartz/components/scripts/graph.inline.ts
 +++ b/quartz/components/scripts/graph.inline.ts
 @@ -122,6 +122,16 @@ async function renderGraph(graph: HTMLElement, fullSlug: FullSlug) {
@@ -37,4 +37,14 @@ index a669b05..0163cef 100644
 +    })
      if (showTags) tags.forEach((tag) => neighbourhood.add(tag))
    }
+ 
+@@ -574,6 +587,9 @@ function cleanupGlobalGraphs() {
+ }
+ 
+ document.addEventListener("nav", async (e: CustomEventMap["nav"]) => {
++  // Skip graph entirely on mobile/tablet — saves CPU, memory and contentIndex fetch
++  if (window.innerWidth < 1024) return
++
+   const slug = e.detail.url
+   addToVisited(simplifySlug(slug))
  
