@@ -9,6 +9,21 @@ tag clouds, OG images, and an explorer sidebar organised by year/week.
 
 ---
 
+## 2026-04-05
+
+### Scripts e infra
+
+- **`vox-publish-windows.ps1`**: fix fnm PATH para scheduled tasks + fix deleções só em full scan (incremental não tem visão completa do `public/`)
+- **`vox-suggest-annotations.ps1`**: migrado para pool explícito via `need-annotation.json` (em vez de scan global); cleanup automático de episódios já anotados; notificação Telegram do pool restante
+- **`serve-local.ps1`**: novo script para servir Quartz localmente com patches aplicados (porta 8085)
+- **`.gitignore`**: adicionado `vox-suggest-annotations.log`
+
+### Conteúdo
+
+- **`render-from-json.py`** (HermesTools): transcript removido do MD; link "Dados adicionais e transcrição" no rodapé apontando para o JSON
+- Re-render de todos os 1681 episódios (MDs sem transcript, -4.4M linhas)
+- Fix alias com `/` no episódio Part 2 An Elegant Puzzle (causava ENOENT no Windows)
+
 ## 2026-04-04
 
 ### Patches — auditoria e alterações
