@@ -1,0 +1,70 @@
+baseURL = "https://vox.thluiz.com"
+title = "Vox"
+languageCode = "pt-BR"
+theme = "hextra"
+themesDir = 'E:\'
+
+# Disable Hugo alias processing — frontmatter "aliases" are Obsidian wikilink
+# aliases, not URL redirects.
+disableAliases = true
+
+# Ignore patterns matching Quartz config
+ignoreFiles = ['\.obsidian', '\.trash', 'README\.md', '.*\.private\.md']
+
+enableGitInfo = false
+
+# Note: `lang` in frontmatter is deprecated since Hugo v0.144 (warning on build).
+# When Hugo removes the special handling, it becomes a plain .Params.lang field —
+# which is exactly what we want (episode language metadata, not routing).
+
+# Content mounts: overlay _index.md from content-home (Hugo needs _index.md
+# for branch bundles), then mount vox-content excluding the Obsidian index.md
+# which Hugo treats as a leaf bundle and swallows all content.
+[module]
+  [[module.mounts]]
+    source = "content-home"
+    target = "content"
+  [[module.mounts]]
+    source = 'E:/vox-content'
+    target = "content"
+    excludeFiles = "index.md"
+  [[module.mounts]]
+    source = "assets"
+    target = "assets"
+  [[module.mounts]]
+    source = "layouts"
+    target = "layouts"
+  [[module.mounts]]
+    source = "static"
+    target = "static"
+
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
+
+[taxonomies]
+  tag = "tags"
+
+[params]
+  description = "Vox — curadoria de podcasts e artigos"
+  dateFormat = "2006-01-02"
+
+  [params.theme]
+    default = "dark"
+
+  [params.navbar]
+    displayTitle = true
+    displayLogo = false
+
+  [params.footer]
+    displayPoweredBy = false
+
+  [params.page]
+    width = "wide"
+
+[menu]
+  [[menu.main]]
+    name = "Tags"
+    url = "/tags/"
+    weight = 1
