@@ -36,15 +36,31 @@ try {
     Log "git pull failed: $_"
 }
 
-# --- 2. Find episodes with transcript but no annotations ---
+# --- 2. Find episodes from need-annotation list, with transcript but no annotations ---
 Log "Scanning episodes..."
 $poolEN = [System.Collections.Generic.List[object]]::new()
 $poolPT = [System.Collections.Generic.List[object]]::new()
 
-$jsonFiles = Get-ChildItem $VOX_CONTENT -Recurse -Filter '*.json' -File
-foreach ($f in $jsonFiles) {
+$needAnnotationFile = Join-Path $PSScriptRoot 'need-annotation.json'
+if (-not (Test-Path $needAnnotationFile)) {
+    $msg = "Ficheiro need-annotation.json não encontrado em $PSScriptRoot"
+    Log $msg
+    Send-Telegram $msg
+    exit 0
+}
+$needList = Get-Content $needAnnotationFile -Raw -Encoding utf8 | ConvertFrom-Json
+$needSet = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+foreach ($p in $needList) { [void]$needSet.Add($p) }
+Log "need-annotation.json: $($needSet.Count) entries"
+
+foreach ($relPath in $needList) {
+    $fullPath = Join-Path $VOX_CONTENT ($relPath -replace '/', '\')
+    if (-not (Test-Path $fullPath)) {
+        Log "  SKIP (not found): $relPath"
+        continue
+    }
     try {
-        $raw = Get-Content $f.FullName -Raw -Encoding utf8
+        $raw = Get-Content $fullPath -Raw -Encoding utf8
         $ep = $raw | ConvertFrom-Json
 
         # Must have transcript
@@ -53,9 +69,8 @@ foreach ($f in $jsonFiles) {
         # Must NOT have annotations (null, missing, or empty array)
         if ($ep.annotations -and $ep.annotations.Count -gt 0) { continue }
 
-        $relPath = $f.FullName.Replace($VOX_CONTENT, '').TrimStart('\').Replace('\', '/')
         $entry = @{
-            Path    = $f.FullName
+            Path    = $fullPath
             RelPath = $relPath
             Lang    = if ($ep.lang) { $ep.lang } else { 'pt' }
             Episode = $ep
@@ -67,14 +82,17 @@ foreach ($f in $jsonFiles) {
             $poolPT.Add($entry)
         }
     } catch {
-        # skip malformed files
+        Log "  SKIP (parse error): $relPath"
     }
 }
 
-Log "Candidates: $($poolEN.Count) EN, $($poolPT.Count) PT"
+$totalPool = $poolEN.Count + $poolPT.Count
+Log "Candidates: $($poolEN.Count) EN, $($poolPT.Count) PT (need-annotation pool)"
 
-if (($poolEN.Count + $poolPT.Count) -eq 0) {
-    Log "No candidates found. Exiting."
+if ($totalPool -eq 0) {
+    $msg = "Nenhum episódio marcado com need-annotation. Marque episódios para receber sugestões."
+    Log $msg
+    Send-Telegram $msg
     exit 0
 }
 
@@ -223,4 +241,26 @@ foreach ($item in $selected) {
     }
 }
 
-Log "Done. Processed $($selected.Count) episodes."
+# --- 5. Clean up need-annotation.json (remove already-annotated) ---
+$stillPending = [System.Collections.Generic.List[string]]::new()
+foreach ($relPath in $needList) {
+    $fullPath = Join-Path $VOX_CONTENT ($relPath -replace '/', '\')
+    if (-not (Test-Path $fullPath)) { continue }
+    try {
+        $raw = Get-Content $fullPath -Raw -Encoding utf8
+        $ep = $raw | ConvertFrom-Json
+        if ($ep.annotations -and $ep.annotations.Count -gt 0) { continue }
+        if (-not $ep.transcript -or $ep.transcript.Length -lt 100) { continue }
+        $stillPending.Add($relPath)
+    } catch { }
+}
+$removed = $needSet.Count - $stillPending.Count
+if ($removed -gt 0) {
+    $stillPending | ConvertTo-Json | Set-Content $needAnnotationFile -Encoding utf8
+    Log "Cleaned need-annotation.json: removed $removed already-annotated entries"
+}
+
+# --- 6. Report remaining pool size ---
+Send-Telegram "📋 $($stillPending.Count) episódios com need-annotation aguardando anotação"
+
+Log "Done. Processed $($selected.Count) episodes. $($stillPending.Count) remaining in pool."

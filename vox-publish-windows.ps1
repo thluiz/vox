@@ -18,6 +18,13 @@ $QUARTZ_DIR   = "E:\quartz"
 $CONTENT_DIR  = "E:\vox-content"
 $SCRIPTS_DIR  = $VOX_DIR
 
+# Garantir fnm + node no PATH (scheduled tasks não carregam o perfil do utilizador)
+$fnmExe = Join-Path $env:LOCALAPPDATA "Microsoft\WinGet\Packages\Schniz.fnm_Microsoft.Winget.Source_8wekyb3d8bbwe\fnm.exe"
+if (Test-Path $fnmExe) {
+    & $fnmExe env --shell powershell | Out-String | Invoke-Expression
+    Write-Host "[vox] Node: $(node --version) via fnm"
+}
+
 # Carregar .env
 $envFile = Join-Path $VOX_DIR ".env"
 if (Test-Path $envFile) {
@@ -225,12 +232,14 @@ foreach ($r in $results) {
     if ($prevManifest[$r.Rel] -ne $r.Hash) { $toUpload.Add($r.Rel) }
 }
 
-# Detetar deleções: arquivos no manifest que já não existem em public/
+# Detetar deleções: só em full scan (incremental não tem visão completa do public/)
 $toDelete = [System.Collections.Generic.List[string]]::new()
-foreach ($key in $prevManifest.Keys) {
-    if (-not (Test-Path (Join-Path $publicDir $key))) {
-        $toDelete.Add($key)
-        $newManifest.Remove($key) | Out-Null
+if ($isFullScan) {
+    foreach ($key in $prevManifest.Keys) {
+        if (-not (Test-Path (Join-Path $publicDir $key))) {
+            $toDelete.Add($key)
+            $newManifest.Remove($key) | Out-Null
+        }
     }
 }
 

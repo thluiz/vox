@@ -4,3 +4,4 @@
 !.env.example
 .claude/settings.local.json
 logs/
+vox-suggest-annotations.log
