@@ -2,10 +2,58 @@
 
 All notable changes to the **Vox** project are documented in this file.
 
-Vox is a digital garden built on [Quartz v4](https://quartz.jzhao.xyz/) for
-publishing podcast transcriptions and annotations. It was created to give
-listeners a searchable, browsable archive of episode content with automatic
-tag clouds, OG images, and an explorer sidebar organised by year/week.
+Vox is a digital garden for publishing podcast transcriptions and annotations.
+It provides a searchable, browsable archive of episode content with tag clouds,
+and an explorer sidebar organised by year/week.
+
+---
+
+## v2.0.0 — 2026-04-05 — Hugo + Hextra Migration
+
+### Engine migration: Quartz v4 → Hugo + Hextra
+
+**Why**: Quartz v4 rebuilt the entire site on every build (1681 episodes). Hugo has
+native incremental builds and is orders of magnitude faster (~25s full build vs minutes).
+
+**Theme**: [Hextra](https://github.com/imfing/hextra) (Tailwind CSS, FlexSearch, dark mode).
+
+### What changed
+
+- **`hugo.toml`**: Full Hugo config with module mounts (content from `E:\vox-content`,
+  excludes Obsidian `index.md`), `disableAliases = true` for Obsidian alias compatibility
+- **Content symlink replaced by module mounts**: `content-home/_index.md` provides the
+  Hugo-compatible home page; vox-content mounted as secondary content source
+- **Custom sidebar** (`layouts/_partials/sidebar.html`): Year → week navigation with
+  episode counts, skipping month level, weeks link to year page `#anchors`
+- **Typography** (`assets/css/custom.css`): Source Sans Pro (body), Schibsted Grotesk
+  (headers), IBM Plex Mono (code), Quartz color palette (`#4e4e4e` darkgray text),
+  Tailwind CSS variable overrides for compact density
+- **Episode layout** (`layouts/docs/single.html`): Flag (BR/US), date, reading time,
+  word count, tag badges, then title and content
+- **Render hooks**: `render-heading.html` suppresses duplicate H1 (frontmatter title
+  vs markdown `# Title`); `render-link.html` fixes relative JSON data links
+- **Section list pages** (`layouts/docs/list.html`): Episodes grouped by week with
+  metadata (flag, date, reading time); home page shows curated top 10 tags +
+  recent publications + about text
+- **Tag taxonomy** (`layouts/docs/taxonomy.html`, `term.html`): Tag cloud sorted by
+  count; individual tag pages with episode metadata
+- **`serve-local.ps1`**: Adapted for Hugo (applies/reverts patches to Hextra theme)
+
+### Compatibility
+
+- **Zero changes to vox-content**: All modifications are in the Hugo project
+  (worktree `E:\Vox-Hugo`, branch `vox-hugo`). Quartz continues to work from `main`.
+- **Obsidian aliases**: `disableAliases = true` prevents Hugo from creating redirect
+  pages for Obsidian wikilink aliases in frontmatter
+- **`lang` frontmatter**: Deprecated in Hugo v0.144 but still accessible as
+  `.Params.lang` — used for BR/US flag display
+
+### Not yet migrated (future phases)
+
+- Graph view + backlinks (D3.js/AntV G6)
+- OG images, `fb:app_id`, `noindex` meta tags
+- Custom tag filtering (`hideTags`, `minEntries`)
+- Wikilinks `[[...]]` rendering
 
 ---
 
