@@ -5,3 +5,5 @@
 .claude/settings.local.json
 logs/
 vox-suggest-annotations.log
+public/
+.hugo_build.lock

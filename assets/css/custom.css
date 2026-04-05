@@ -1,0 +1,94 @@
+/* Vox — Quartz-matching layout via CSS variable overrides */
+
+/* Fonts loaded via <link> in head-end.html partial */
+
+/* ── Override Hextra/Tailwind variables to match Quartz scale ── */
+:root, :host {
+  /* Scale down the Tailwind text sizes */
+  --hx-text-xs: 0.7rem;
+  --hx-text-sm: 0.8rem;
+  --hx-text-base: 0.85rem;
+  --hx-text-lg: 0.95rem;
+  --hx-text-xl: 1.05rem;
+  --hx-text-2xl: 1.3rem;
+  --hx-text-3xl: 1.5rem;
+  --hx-text-4xl: 1.75rem;
+  --hx-text-5xl: 2.25rem;
+
+  /* Tighter spacing base */
+  --hx-spacing: 0.22rem;
+
+  /* Fonts */
+  --hx-font-sans: 'Source Sans Pro', 'Source Sans Pro', ui-sans-serif, system-ui, sans-serif;
+  --hx-font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
+}
+
+/* Header font */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Schibsted Grotesk', sans-serif;
+}
+
+/* ── Sidebar — narrower ── */
+@media (min-width: 768px) {
+  .hextra-sidebar-container { width: 10rem; }
+}
+
+/* Sidebar scrollbar — hidden until hover */
+.hextra-sidebar-container .hextra-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.hextra-sidebar-container .hextra-scrollbar:hover {
+  scrollbar-color: rgba(150,150,150,.5) transparent;
+}
+
+/* ── Content max-width — use full available space ── */
+.hextra-max-content-width { max-width: none; }
+
+/* ── Vox-specific components ── */
+
+.vox-meta {
+  display: flex; align-items: center; gap: 0.3rem;
+  font-size: 0.78rem; color: #6b7280;
+  margin: 0 0 0.1rem 0; line-height: 1;
+}
+:is(.dark) .vox-meta { color: #9ca3af; }
+.vox-flag { display: inline; vertical-align: middle; margin: 0; }
+
+/* Anchor scroll offset — compensate for fixed navbar */
+[id] { scroll-margin-top: 4rem; }
+
+/* Prevent prose styling from centering images inside vox-meta */
+.content .vox-meta { text-align: left; }
+.content .vox-meta img { display: inline; margin: 0; }
+
+.vox-tags {
+  display: flex; flex-wrap: wrap; gap: 0.25rem;
+  margin: 0.1rem 0 0.2rem 0; padding: 0;
+}
+.vox-tags a {
+  display: inline-block; font-size: 0.7rem; font-weight: 600;
+  padding: 0.08rem 0.32rem; border-radius: 8px; text-decoration: none;
+  background: rgba(143,159,169,0.15); color: #4e4e4e;
+}
+:is(.dark) .vox-tags a { color: #d4d4d4; }
+.vox-tags a:hover { background: rgba(143,159,169,0.3); }
+
+.vox-title {
+  font-size: 1.75rem; font-weight: 700; line-height: 1.2;
+  margin: 0.1rem 0 0.15rem 0; padding: 0;
+}
+
+/* ── Content prose — Quartz values ── */
+.content { color: #4e4e4e; }
+:is(.dark) .content { color: #d4d4d4; }
+.content p { line-height: 1.6; }
+.content > hr:first-of-type { display: none; }
+.content a { font-weight: 600; }
+.content h1, .content h2, .content h3, .content h4 { color: #2b2b2b; }
+:is(.dark) .content h1, :is(.dark) .content h2,
+:is(.dark) .content h3, :is(.dark) .content h4 { color: #ebebec; }
+
+/* Quartz body color */
+body { color: #4e4e4e; }
+:is(.dark) body { color: #d4d4d4; }
