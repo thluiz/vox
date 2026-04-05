@@ -25,10 +25,12 @@ index a1df6e1..739da9d 100644
 +      ]
 +        .filter((t) => !(options.hideTags ?? []).includes(t))
 +        .filter((t) => allPagesWithTag(t).length >= (options.minEntries ?? 1))
-+        .sort((a, b) => a.localeCompare(b))
        const tagItemMap: Map<string, QuartzPluginData[]> = new Map()
        for (const tag of tags) {
          tagItemMap.set(tag, allPagesWithTag(tag))
+-      }
++      }
++      tags.sort((a, b) => (tagItemMap.get(b)?.length ?? 0) - (tagItemMap.get(a)?.length ?? 0))
 @@ -78,29 +85,10 @@ export default ((opts?: Partial<TagContentOptions>) => {
                const href = resolveRelative(fileData.slug!, tagListingPage)
  
