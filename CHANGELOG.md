@@ -8,6 +8,12 @@ and an explorer sidebar organised by year/week.
 
 ---
 
+## v2.0.1 — 2026-04-05 — OG image tuning
+
+- OG image description font increased to 36px, up to 350 chars
+- OG image title font increased to 50px, full title (truncate at 120 chars)
+- OG image footer font increased to 26px
+
 ## v2.0.0 — 2026-04-05 — Hugo + Hextra Migration
 
 ### Engine migration: Quartz v4 → Hugo + Hextra

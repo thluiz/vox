@@ -22,26 +22,26 @@
     )) -}}
 
     {{/* Title — truncate long titles */}}
-    {{- $title := printf "%s — Vox" (.Title | truncate 80) -}}
+    {{- $title := printf "%s — Vox" (.Title | truncate 120) -}}
     {{- $img = $img.Filter (images.Text $title (dict
       "color" "#ebebec"
-      "size" 48
+      "size" 50
       "x" 60
-      "y" 100
+      "y" 85
       "linespacing" 14
       "font" $titleFont
     )) -}}
 
     {{/* Description */}}
-    {{- $rawDesc := .Params.description | default (.Plain | truncate 200) -}}
-    {{- $desc := substr (string $rawDesc) 0 160 -}}
+    {{- $rawDesc := .Params.description | default (.Plain | truncate 400) -}}
+    {{- $desc := substr (string $rawDesc) 0 350 -}}
     {{- if $desc -}}
       {{- $img = $img.Filter (images.Text $desc (dict
         "color" "#b8b8b8"
-        "size" 24
+        "size" 36
         "x" 60
-        "y" 280
-        "linespacing" 10
+        "y" 270
+        "linespacing" 14
         "font" $bodyFont
       )) -}}
     {{- end -}}
@@ -57,9 +57,9 @@
     {{- if $meta -}}
       {{- $img = $img.Filter (images.Text $meta (dict
         "color" "#9ca3af"
-        "size" 22
+        "size" 26
         "x" 60
-        "y" 540
+        "y" 555
         "font" $bodyFont
       )) -}}
     {{- end -}}
@@ -72,9 +72,9 @@
       {{- end -}}
       {{- $img = $img.Filter (images.Text (strings.TrimLeft " " $tagStr) (dict
         "color" "#84a59d"
-        "size" 22
-        "x" 600
-        "y" 540
+        "size" 26
+        "x" 580
+        "y" 555
         "font" $bodyFont
       )) -}}
     {{- end -}}
