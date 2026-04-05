@@ -1,0 +1,94 @@
+{{/* Vox OG image generation — replicates Quartz dark OG cards */}}
+
+<meta property="og:title" content="{{ .Title }}">
+<meta property="og:description" content="{{ with .Description }}{{ . }}{{ else }}{{ .Summary | truncate 200 }}{{ end }}">
+<meta property="og:type" content="{{ if .IsPage }}article{{ else }}website{{ end }}">
+<meta property="og:url" content="{{ .Permalink }}">
+{{ with .Site.Params.title }}<meta property="og:site_name" content="{{ . }}">{{ end }}
+
+{{- if .IsPage -}}
+  {{- $base := resources.Get "images/og-base.png" -}}
+  {{- $titleFont := resources.Get "fonts/SchibstedGrotesk-Bold.ttf" -}}
+  {{- $bodyFont := resources.Get "fonts/SourceSansPro-Regular.ttf" -}}
+
+  {{- if and $base $titleFont $bodyFont -}}
+    {{/* Site name */}}
+    {{- $img := $base.Filter (images.Text "vox.thluiz.com" (dict
+      "color" "#9ca3af"
+      "size" 24
+      "x" 60
+      "y" 40
+      "font" $bodyFont
+    )) -}}
+
+    {{/* Title — truncate long titles */}}
+    {{- $title := printf "%s — Vox" (.Title | truncate 80) -}}
+    {{- $img = $img.Filter (images.Text $title (dict
+      "color" "#ebebec"
+      "size" 48
+      "x" 60
+      "y" 100
+      "linespacing" 14
+      "font" $titleFont
+    )) -}}
+
+    {{/* Description */}}
+    {{- $rawDesc := .Params.description | default (.Plain | truncate 200) -}}
+    {{- $desc := substr (string $rawDesc) 0 160 -}}
+    {{- if $desc -}}
+      {{- $img = $img.Filter (images.Text $desc (dict
+        "color" "#b8b8b8"
+        "size" 24
+        "x" 60
+        "y" 280
+        "linespacing" 10
+        "font" $bodyFont
+      )) -}}
+    {{- end -}}
+
+    {{/* Date + reading time */}}
+    {{- $meta := "" -}}
+    {{- with .Date -}}
+      {{- $meta = .Format "02 Jan 2006" -}}
+    {{- end -}}
+    {{- if .WordCount -}}
+      {{- $meta = printf "%s   ·   Leitura de %d min" $meta .ReadingTime -}}
+    {{- end -}}
+    {{- if $meta -}}
+      {{- $img = $img.Filter (images.Text $meta (dict
+        "color" "#9ca3af"
+        "size" 22
+        "x" 60
+        "y" 540
+        "font" $bodyFont
+      )) -}}
+    {{- end -}}
+
+    {{/* Tags — top 3 */}}
+    {{- with .Params.tags -}}
+      {{- $tagStr := "" -}}
+      {{- range first 3 . -}}
+        {{- $tagStr = printf "%s  #%s" $tagStr . -}}
+      {{- end -}}
+      {{- $img = $img.Filter (images.Text (strings.TrimLeft " " $tagStr) (dict
+        "color" "#84a59d"
+        "size" 22
+        "x" 600
+        "y" 540
+        "font" $bodyFont
+      )) -}}
+    {{- end -}}
+
+    {{- $img = resources.Copy (printf "%sog.png" .RelPermalink) $img -}}
+    <meta property="og:image" content="{{ $img.Permalink }}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+  {{- end -}}
+
+  {{- $iso8601 := "2006-01-02T15:04:05-07:00" -}}
+  <meta property="article:section" content="{{ .Section }}">
+  {{ with .PublishDate }}<meta property="article:published_time" {{ .Format $iso8601 | printf "content=%q" | safeHTMLAttr }}>{{ end }}
+  {{ with .Lastmod }}<meta property="article:modified_time" {{ .Format $iso8601 | printf "content=%q" | safeHTMLAttr }}>{{ end }}
+{{- end -}}
+
+<meta name="robots" content="noindex, nofollow">
