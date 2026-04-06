@@ -7,3 +7,4 @@ logs/
 vox-suggest-annotations.log
 public/
 .hugo_build.lock
+resources/

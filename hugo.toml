@@ -14,6 +14,7 @@ ignoreFiles = ['\.obsidian', '\.trash', 'README\.md', '.*\.private\.md']
 enableGitInfo = false
 enableRobotsTXT = false
 
+
 # Note: `lang` in frontmatter is deprecated since Hugo v0.144 (warning on build).
 # When Hugo removes the special handling, it becomes a plain .Params.lang field —
 # which is exactly what we want (episode language metadata, not routing).
