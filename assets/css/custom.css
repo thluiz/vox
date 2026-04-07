@@ -92,3 +92,34 @@ h1, h2, h3, h4, h5, h6 {
 /* Quartz body color */
 body { color: #4e4e4e; }
 :is(.dark) body { color: #d4d4d4; }
+
+/* ── Episode footer ── */
+.vox-episode-footer {
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(143,159,169,0.3);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #4e4e4e;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+:is(.dark) .vox-episode-footer { color: #d4d4d4; border-top-color: rgba(143,159,169,0.15); }
+.vox-episode-footer a { text-decoration: underline; }
+.vox-footer-muted { color: #6b7280; }
+:is(.dark) .vox-footer-muted { color: #9ca3af; }
+.vox-footer-identity strong { font-weight: 600; font-size: 1rem; }
+.vox-footer-identity strong a { color: inherit; }
+.vox-footer-identity .vox-footer-muted { font-size: 0.8rem; }
+.vox-footer-participants a { color: inherit; }
+.vox-footer-participants-note { display: inline-block; margin-top: 0.1rem; font-size: 0.75rem; font-style: italic; }
+.vox-footer-source { font-size: 0.78rem; word-break: break-all; }
+.vox-footer-source a { color: inherit; }
+.vox-footer-tech { font-size: 0.78rem; padding-top: 0.25rem; border-top: 1px dashed rgba(143,159,169,0.2); }
+.vox-footer-tech code { font-size: 0.72rem; }
+.vox-footer-legal { margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid rgba(143,159,169,0.3); font-size: 0.8rem; }
+:is(.dark) .vox-footer-legal { border-top-color: rgba(143,159,169,0.15); }
+.vox-footer-legal p { margin: 0 0 0.4rem 0; }
+.vox-footer-legal p:last-child { margin-bottom: 0; }
+.vox-footer-top { text-align: right; font-size: 0.8rem; }
