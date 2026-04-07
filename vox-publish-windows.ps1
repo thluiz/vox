@@ -129,8 +129,8 @@ function Get-HtmlPathsToCheck($contentDir, $publicDir, $lastCommit, $currentComm
         $htmlRel = if ($dir) { "$dir\$noExt\index.html" } else { "$noExt\index.html" }
         $paths.Add($htmlRel) | Out-Null
 
-        # OG image: slug/og.png
-        $ogRel = if ($dir) { "$dir\$noExt\og.png" } else { "$noExt\og.png" }
+        # OG image: slug/og.webp
+        $ogRel = if ($dir) { "$dir\$noExt\og.webp" } else { "$noExt\og.webp" }
         if (Test-Path (Join-Path $publicDir $ogRel)) { $paths.Add($ogRel) | Out-Null }
 
         # JSON data file (Hugo copies as resource)
