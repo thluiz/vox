@@ -8,6 +8,14 @@ and an explorer sidebar organised by year/week.
 
 ---
 
+## v2.0.2 — 2026-04-07 — WebP OG images
+
+- OG images switched from PNG to WebP — 63% smaller (~30KB vs ~80KB)
+- `vox-publish-windows.ps1`: incremental path detection now looks for `og.webp`
+  instead of `og.png` (the stale `og.png` check caused 70 newly-generated OG
+  images to be skipped during incremental publishes; all backfilled to S3)
+- `hugo.toml`: `disablePathToLower = true` to preserve case in generated URLs
+
 ## v2.0.1 — 2026-04-05 — OG image tuning
 
 - OG image description font increased to 36px, up to 350 chars

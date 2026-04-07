@@ -7,6 +7,7 @@ themesDir = 'E:\'
 # Disable Hugo alias processing — frontmatter "aliases" are Obsidian wikilink
 # aliases, not URL redirects.
 disableAliases = true
+disablePathToLower = true
 
 # Ignore patterns matching Quartz config
 ignoreFiles = ['\.obsidian', '\.trash', 'README\.md', '.*\.private\.md']
