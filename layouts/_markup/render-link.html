@@ -1,14 +1,6 @@
 {{- $dest := .Destination -}}
 {{- $url := urls.Parse $dest -}}
 
-{{- /* Vox: fix relative content paths (e.g. "2026/03/W11/file.json") — make absolute */ -}}
-{{- if and $dest (not (hasPrefix $dest "/")) (not (hasPrefix $dest "http")) (not (hasPrefix $dest "#")) (not (hasPrefix $dest "mailto:")) -}}
-  {{- if findRE `^\d{4}/` $dest -}}
-    {{- $dest = printf "/%s" $dest -}}
-    {{- $url = urls.Parse $dest -}}
-  {{- end -}}
-{{- end -}}
-
 {{- if and $dest (hasPrefix $dest "/") -}}
   {{- with or (.PageInner.GetPage $url.Path) (.PageInner.Resources.Get $url.Path) (resources.Get $url.Path) -}}
     {{- $query := cond $url.RawQuery (printf "?%s" $url.RawQuery) "" -}}
