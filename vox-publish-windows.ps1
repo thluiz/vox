@@ -209,6 +209,56 @@ foreach ($r in $results) {
     if ($prevManifest[$r.Rel] -ne $r.Hash) { $toUpload.Add($r.Rel) }
 }
 
+# Incremental-only: assets estáticos (css, js, images, scripts, favicons, etc.)
+# não são derivados do git diff de vox-content, então Get-HtmlPathsToCheck
+# nunca os inclui. Hugo regenera css/js com nome content-hashed quando o
+# source muda — sem esta re-verificação, mudanças em layouts/ ou assets/
+# ficariam presas (bug encontrado após v2.0.3: footer css publicado mas
+# o arquivo .css novo ficou 404 no S3).
+#
+# Estratégia: hashear uma whitelist de diretórios de assets e ficheiros
+# raíz estáticos e fazer a mesma comparação contra o manifest. São
+# sempre diminutos (<300KB total), custo trivial.
+if (-not $isFullScan) {
+    $assetDirs = @('css', 'js', 'images', 'scripts')
+    $assetRootFiles = @(
+        'robots.txt', '404.html', 'index.html', 'index.xml', 'sitemap.xml', 'site.webmanifest',
+        'favicon.svg', 'favicon.ico', 'favicon-16x16.png', 'favicon-32x32.png',
+        'apple-touch-icon.png',
+        'android-chrome-192x192.png', 'android-chrome-512x512.png'
+    )
+
+    $assetFiles = [System.Collections.Generic.List[System.IO.FileInfo]]::new()
+    foreach ($d in $assetDirs) {
+        $full = Join-Path $publicDir $d
+        if (Test-Path $full) {
+            Get-ChildItem $full -Recurse -File | ForEach-Object { $assetFiles.Add($_) }
+        }
+    }
+    foreach ($f in $assetRootFiles) {
+        $full = Join-Path $publicDir $f
+        if (Test-Path $full) { $assetFiles.Add((Get-Item $full)) }
+    }
+
+    $assetResults = $assetFiles | ForEach-Object -Parallel {
+        $rel  = $_.FullName.Substring($using:publicDir.Length + 1)
+        $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash
+        [PSCustomObject]@{ Rel = $rel; Hash = $hash }
+    } -ThrottleLimit 16
+
+    $assetAdded = 0
+    foreach ($r in $assetResults) {
+        $newManifest[$r.Rel] = $r.Hash
+        if ($prevManifest[$r.Rel] -ne $r.Hash -and -not $toUpload.Contains($r.Rel)) {
+            $toUpload.Add($r.Rel)
+            $assetAdded++
+        }
+    }
+    if ($assetAdded -gt 0) {
+        Write-Host "[vox] +$assetAdded asset(s) estáticos com hash novo"
+    }
+}
+
 # Detetar deleções: só em full scan
 $toDelete = [System.Collections.Generic.List[string]]::new()
 if ($isFullScan) {

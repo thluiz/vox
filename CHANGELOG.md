@@ -8,6 +8,56 @@ and an explorer sidebar organised by year/week.
 
 ---
 
+## v2.0.4 — 2026-04-08 — Publish script: static asset re-check
+
+### The bug
+
+`vox-publish-windows.ps1`'s incremental mode builds its upload list
+exclusively from `Get-HtmlPathsToCheck`, which walks the `vox-content`
+git diff and maps each changed `.md`/`.json` to its derived HTML
+outputs (episode page, parent year/month/week indexes, tag pages, OG
+image, sibling JSON sidecar). This is great for content churn but
+completely ignores anything in `public/` that is **not** derived from
+a content file — in particular Hugo's compiled assets under
+`public/css/`, `public/js/`, theme images, favicons, and root-level
+generated files (`index.html`, `sitemap.xml`, `site.webmanifest`,
+`404.html`).
+
+The v2.0.3 footer partial added new rules to `assets/css/custom.css`,
+which changed the compiled CSS hash from
+`main.min.fbf9cea32b9a4737e078baf68235e08723d14e9aee3220628540e2ad32847183.css`
+to
+`main.min.78adf0a14183bab58a60d985d4d9454b520c08128783e09f8aba2b675ebee14a.css`.
+The regenerated episode HTMLs referenced the new hash and were
+uploaded correctly (11 869 files), but the CSS file itself was never
+hashed, never compared against the manifest, and never uploaded.
+Every episode page on the live site 404'd on the stylesheet until the
+CSS was pushed manually.
+
+### The fix
+
+- **`vox-publish-windows.ps1`** — after the episode-derived upload
+  list is built, the incremental path now walks a small whitelist of
+  static-asset directories (`css`, `js`, `images`, `scripts`) plus a
+  fixed list of root files (`robots.txt`, `404.html`, `index.html`,
+  `index.xml`, `sitemap.xml`, `site.webmanifest`, all the favicons
+  and touch icons) and hashes them in parallel. Hashes are compared
+  against the manifest exactly like the content files, so unchanged
+  assets are skipped, but any file with a different hash (or an
+  entirely new content-hashed filename, as with the Hextra-compiled
+  CSS/JS) is added to `$toUpload`. The additional scan is <300 KB
+  of data and completes in well under a second.
+- The fix applies **only** to incremental mode. Full-scan mode already
+  covers these files because it hashes everything under `public/`.
+
+### Why not just force a full sync?
+
+Full scan re-hashes ~16 000 files and re-checks every one against
+S3, which is significantly slower and uploads the full delta even
+when nothing changed. The incremental approach is worth preserving
+for its speed — the whitelist fix patches the one class of files it
+was missing, without sacrificing incrementality.
+
 ## v2.0.3 — 2026-04-07 — Episode footer & metadata migration
 
 ### What changed
