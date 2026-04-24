@@ -123,3 +123,38 @@ body { color: #4e4e4e; }
 .vox-footer-legal p { margin: 0 0 0.4rem 0; }
 .vox-footer-legal p:last-child { margin-bottom: 0; }
 .vox-footer-top { text-align: right; font-size: 0.8rem; }
+
+/* ── Transcript page ── */
+.vox-transcript-page h1 { margin-bottom: 0.25rem; }
+.vox-transcript-muted { color: rgba(143,159,169,0.9); font-size: 0.85rem; }
+:is(.dark) .vox-transcript-muted { color: rgba(165,181,191,0.75); }
+.vox-transcript-help { margin-top: 1.5rem; font-style: italic; }
+
+#tr-back { margin: 0 0 0.5rem 0; font-size: 0.85rem; }
+#tr-toc-nav { margin: 1rem 0 1.5rem 0; padding: 0.75rem 1rem; border: 1px solid rgba(143,159,169,0.25); border-radius: 6px; }
+#tr-toc-nav h2 { font-size: 0.95rem; margin: 0 0 0.5rem 0; }
+#tr-toc { list-style: none; padding: 0; margin: 0; }
+#tr-toc li { margin: 0.15rem 0; }
+#tr-toc a { text-decoration: none; display: inline-block; padding: 0.2rem 0; }
+#tr-toc a:hover { text-decoration: underline; }
+
+.vox-tr-time { font-family: var(--hx-font-mono, monospace); font-size: 0.78rem; color: rgba(143,159,169,0.9); margin-right: 0.4rem; white-space: nowrap; }
+:is(.dark) .vox-tr-time { color: rgba(165,181,191,0.7); }
+
+.vox-tr-section { border-top: 1px solid rgba(143,159,169,0.2); padding: 0.5rem 0; }
+.vox-tr-section:last-of-type { border-bottom: 1px solid rgba(143,159,169,0.2); }
+.vox-tr-section > summary { cursor: pointer; padding: 0.5rem 0; list-style: none; }
+.vox-tr-section > summary::-webkit-details-marker { display: none; }
+.vox-tr-section > summary::before { content: '▸'; display: inline-block; width: 1em; color: rgba(143,159,169,0.7); transition: transform 0.12s; }
+.vox-tr-section[open] > summary::before { transform: rotate(90deg); }
+.vox-tr-topic { font-weight: 600; }
+.vox-tr-summary { margin: 0.25rem 0 0.75rem 1.5rem; font-size: 0.85rem; font-style: italic; color: rgba(143,159,169,0.95); }
+:is(.dark) .vox-tr-summary { color: rgba(200,210,220,0.75); }
+.vox-tr-lines { margin: 0.25rem 0 0.75rem 1.5rem; }
+.vox-tr-line { margin: 0.35rem 0; line-height: 1.5; }
+
+@media (max-width: 560px) {
+  .vox-tr-summary, .vox-tr-lines { margin-left: 0.75rem; }
+  .vox-tr-line .vox-tr-time { display: block; margin-bottom: 0.1rem; }
+}
+

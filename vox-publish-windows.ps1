@@ -220,7 +220,7 @@ foreach ($r in $results) {
 # raíz estáticos e fazer a mesma comparação contra o manifest. São
 # sempre diminutos (<300KB total), custo trivial.
 if (-not $isFullScan) {
-    $assetDirs = @('css', 'js', 'images', 'scripts')
+    $assetDirs = @('css', 'js', 'images', 'scripts', 'transcript')
     $assetRootFiles = @(
         'robots.txt', '404.html', 'index.html', 'index.xml', 'sitemap.xml', 'site.webmanifest',
         'favicon.svg', 'favicon.ico', 'favicon-16x16.png', 'favicon-32x32.png',

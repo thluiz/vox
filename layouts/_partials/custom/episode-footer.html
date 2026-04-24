@@ -2,12 +2,14 @@
      podcast categories, podcast_type) that is not present in the MD
      frontmatter. Safe against pages without a .File or without JSON. */}}
 {{- $meta := dict }}
+{{- $hasTranscript := false }}
 {{- with .File }}
   {{- $jsonPath := replace .Path ".md" ".json" }}
   {{- $tryRead := try (os.ReadFile $jsonPath) }}
   {{- with $tryRead.Value }}
     {{- $json := . | transform.Unmarshal }}
     {{- $meta = $json.metadata | default dict }}
+    {{- if $json.transcript }}{{ $hasTranscript = true }}{{ end }}
   {{- end }}
 {{- end }}
 
@@ -80,8 +82,14 @@
     </div>
   {{- end }}
 
-  {{/* 4. Technical links — JSON sidecar + UUID on a single subtle line */}}
+  {{/* 4. Technical links — JSON sidecar + reader transcript + UUID */}}
   <div class="vox-footer-tech vox-footer-muted">
+    {{- if $hasTranscript }}
+      <a href="{{ printf "/transcript/?json=%s" $jsonURL | relURL }}">
+        {{- if $isEN }}Read transcript{{ else }}Ler transcrição{{ end -}}
+      </a>
+      ·
+    {{- end }}
     <a href="{{ $jsonURL }}">
       {{- if $isEN -}}Additional data & transcript (JSON)
       {{- else -}}Dados adicionais e transcrição (JSON){{- end -}}

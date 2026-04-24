@@ -1,0 +1,31 @@
+{{ define "main" }}
+<style>
+  /* Hambúrguer do Hextra não abre nada nesta página (sem sidebar), esconder */
+  .hextra-hamburger-menu { display: none !important; }
+</style>
+<div class='hx:mx-auto hx:flex hextra-max-page-width'>
+  <article class="hx:w-full hx:break-words hx:flex hx:min-h-[calc(100vh-var(--navbar-height))] hx:min-w-0 hx:justify-center hx:pb-8 hx:pr-[calc(env(safe-area-inset-right)-1.5rem)]">
+    <main id="content" class="hx:w-full hx:min-w-0 hextra-max-content-width hx:px-6 hx:pt-4 hx:md:px-12">
+      <div class="content vox-transcript-page">
+        <p id="tr-back"><a id="tr-episode-link" href="/">← voltar ao episódio</a></p>
+        <h1 id="tr-title">Transcrição</h1>
+        <p id="tr-podcast" class="vox-transcript-muted"></p>
+
+        <p id="tr-loader" class="vox-transcript-muted">Carregando transcrição…</p>
+
+        <nav id="tr-toc-nav" hidden aria-label="Tópicos">
+          <h2>Tópicos</h2>
+          <ol id="tr-toc"></ol>
+        </nav>
+
+        <div id="tr-sections"></div>
+
+        <p class="vox-transcript-muted vox-transcript-help" hidden id="tr-help">
+          Toque num tópico para abrir. As linhas só são renderizadas quando você abre o tópico.
+        </p>
+      </div>
+    </main>
+  </article>
+</div>
+<script src="{{ "/js/transcript.js" | relURL }}" defer></script>
+{{ end }}
