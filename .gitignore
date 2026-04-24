@@ -8,3 +8,12 @@ vox-suggest-annotations.log
 public/
 .hugo_build.lock
 resources/
+node_modules/
+package.json
+package-lock.json
+seed.spec.ts
+transcript.spec.ts
+mobile-nav.spec.ts
+playwright.config.ts
+public-test/
+test-results/
