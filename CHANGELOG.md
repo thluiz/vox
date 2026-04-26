@@ -8,6 +8,68 @@ and an explorer sidebar organised by year/week.
 
 ---
 
+## v3.0.0 — 2026-04-25 — Hugo migration consolidated; vox-hugo merged into main
+
+This release marks the consolidation of the Quartz → Hugo migration as
+the canonical Vox. The `vox-hugo` branch (which began as an experimental
+rewrite) is now the trunk; `main` is updated to point here. Everything
+in v2.x merges in unchanged — this is a milestone marker, not a new
+codebase change.
+
+### What Vox does today
+
+- **Static digital garden / podcast archive** served at
+  `vox.thluiz.com` (S3 + CloudFront). ~16 000 episodes spanning
+  2010–present, organised by `YYYY/MM/Wnn/<slug>/`.
+- **Episode pages** with rich metadata footer: podcast (linked to
+  its site), author, participants and podcast categories (each
+  linked to its tag page), aliases, publication date, source URL,
+  legal/CC-BY-SA disclaimer, and a JSON sidecar download.
+- **Reader-friendly transcript page** at `/transcript/?json=<sidecar>`
+  segmented by `timeline[]` topics with lazy DOM rendering, and
+  PT/EN UI labels driven by the episode's `lang` field.
+- **Tag system** — every podcast category, participant, and
+  topic-key tag is browsable at `/tags/<slug>/`. Custom tag content
+  pages render the full episode list with publication metadata.
+- **Year / Week / Episode hierarchy** — sidebar tree on desktop;
+  on mobile the "Arquivo" navbar dropdown gives access to the
+  same year nodes (workaround for Hextra's mobile-sidebar limitation).
+- **Search** (Hextra flexsearch, indexed at build time, opt-out
+  per page via `excludeSearch: true`).
+
+### How it's built
+
+- **Hugo** + **Hextra** theme (used as upstream, not forked;
+  overrides live in `layouts/`)
+- Content in a separate repo (`vox-content/`) mounted as a Hugo
+  module — the `.md` files are **rendered by Toscanini** (Elixir
+  service in HermesTools) from JSON sidecars, so layout changes
+  in this repo and renderer changes in Toscanini are paired
+- **Pipeline**: `vox-publish-windows.ps1` builds Hugo, hashes the
+  `public/` tree, diffs against a manifest of the previous publish
+  (or against `vox-content` git diff in incremental mode), uploads
+  only the deltas to S3, then invalidates CloudFront. v2.0.4
+  whitelist covers static-asset re-checks; v2.1.0 added the
+  `transcript/` directory to that whitelist
+- **Quality gate**: Playwright suite (`tests/`, `npm test`) runs
+  3 specs / 8 cases in ~3.4 s parallel; the console spec is the
+  canary against Hextra-integration regressions
+
+### Notes on the merge
+
+- `main` previously held a single late-Quartz patch
+  (`patch: ordenar tags por quantidade decrescente`, on a
+  `patches/TagContent.patch` file the Hugo migration removed —
+  Hugo doesn't apply Quartz patches). The merge accepts the
+  `vox-hugo` tree, preserving the patch in `main`'s history as
+  an ancestor commit
+- The legacy Quartz scaffolding (`quartz.config.ts`,
+  `quartz.layout.ts`, `install-vox.sh`, `vox-publish.sh`,
+  `patches-quartz-archived/`, `custom.scss`) remains in the tree
+  for now — harmless, useful as historical reference
+- `last-published-commit.txt` and `public-manifest.json` continue
+  to be owned by the publish script
+
 ## v2.2.0 — 2026-04-25 — Playwright test suite & onboarding doc
 
 ### What changed
