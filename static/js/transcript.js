@@ -1,6 +1,40 @@
 (function () {
   'use strict';
 
+  var LABELS = {
+    pt: {
+      siteSuffix: 'Vox',
+      titlePrefix: 'Transcrição',
+      back: '← voltar ao episódio',
+      topicsHeading: 'Tópicos',
+      help: 'Toque num tópico para abrir. As linhas só são renderizadas quando você abre o tópico.',
+      intro: 'Introdução',
+      untitled: '(sem título)',
+      errLoad: 'Erro ao carregar a transcrição: ',
+      errMissingParam: 'Parâmetro ?json= ausente na URL.',
+      errNoTranscript: 'Este episódio não tem transcrição disponível.',
+      errEmpty: 'Transcrição vazia ou em formato não reconhecido.'
+    },
+    en: {
+      siteSuffix: 'Vox',
+      titlePrefix: 'Transcript',
+      back: '← back to episode',
+      topicsHeading: 'Topics',
+      help: 'Tap a topic to open. Lines render only when a topic is opened.',
+      intro: 'Introduction',
+      untitled: '(untitled)',
+      errLoad: 'Failed to load transcript: ',
+      errMissingParam: 'Missing ?json= parameter in URL.',
+      errNoTranscript: 'This episode has no transcript available.',
+      errEmpty: 'Empty transcript or unrecognized format.'
+    }
+  };
+
+  function pickLabels(lang) {
+    var key = String(lang || '').toLowerCase().split('-')[0];
+    return LABELS[key] || LABELS.pt;
+  }
+
   var params = new URLSearchParams(location.search);
   var jsonUrl = params.get('json');
 
@@ -14,9 +48,11 @@
   var $help = document.getElementById('tr-help');
 
   if (!jsonUrl) {
-    showError('Parâmetro ?json= ausente na URL.');
+    showError(LABELS.pt.errMissingParam);
     return;
   }
+
+  var L = LABELS.pt; // default until JSON tells us otherwise
 
   fetch(jsonUrl, { credentials: 'omit' })
     .then(function (r) {
@@ -25,7 +61,7 @@
     })
     .then(render)
     .catch(function (err) {
-      showError('Erro ao carregar a transcrição: ' + err.message);
+      showError(L.errLoad + err.message);
     });
 
   function showError(msg) {
@@ -86,7 +122,7 @@
     if (intro.length) {
       sections.push({
         time: intro[0].time,
-        topic: 'Introdução',
+        topic: L.intro,
         summary: '',
         lines: intro
       });
@@ -102,7 +138,7 @@
       }
       sections.push({
         time: entry.time,
-        topic: entry.topic || '(sem título)',
+        topic: entry.topic || L.untitled,
         summary: entry.summary || '',
         lines: secLines
       });
@@ -143,8 +179,17 @@
   }
 
   function render(data) {
-    document.title = (data.title || 'Transcrição') + ' — Vox';
-    $title.textContent = 'Transcrição — ' + (data.title || '');
+    L = pickLabels(data.lang);
+    document.documentElement.lang = (data.lang || 'pt').toLowerCase();
+
+    document.title = (data.title || L.titlePrefix) + ' — ' + L.siteSuffix;
+    $title.textContent = L.titlePrefix + ' — ' + (data.title || '');
+    $back.textContent = L.back;
+    $back.href = deriveEpisodeHref(jsonUrl);
+
+    var $topicsHeading = document.querySelector('#tr-toc-nav h2');
+    if ($topicsHeading) $topicsHeading.textContent = L.topicsHeading;
+    $help.textContent = L.help;
 
     var meta = data.metadata || {};
     var parts = [];
@@ -152,10 +197,8 @@
     if (meta.author) parts.push(meta.author);
     $podcast.textContent = parts.join(' — ');
 
-    $back.href = deriveEpisodeHref(jsonUrl);
-
     if (!data.transcript) {
-      showError('Este episódio não tem transcrição disponível.');
+      showError(L.errNoTranscript);
       return;
     }
 
@@ -163,7 +206,7 @@
     var sections = buildSections(data.timeline, lines);
 
     if (!sections.length) {
-      showError('Transcrição vazia ou em formato não reconhecido.');
+      showError(L.errEmpty);
       return;
     }
 
