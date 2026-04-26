@@ -1,0 +1,151 @@
+{{/* Load sibling JSON sidecar for extra metadata (source_url, author,
+     podcast categories, podcast_type) that is not present in the MD
+     frontmatter. Safe against pages without a .File or without JSON. */}}
+{{- $meta := dict }}
+{{- $hasTranscript := false }}
+{{- with .File }}
+  {{- $jsonPath := replace .Path ".md" ".json" }}
+  {{- $tryRead := try (os.ReadFile $jsonPath) }}
+  {{- with $tryRead.Value }}
+    {{- $json := . | transform.Unmarshal }}
+    {{- $meta = $json.metadata | default dict }}
+    {{- if $json.transcript }}{{ $hasTranscript = true }}{{ end }}
+  {{- end }}
+{{- end }}
+
+{{- $isEN := eq .Params.lang "en" -}}
+{{- $podcast := or $meta.podcast .Params.podcast -}}
+{{- $jsonURL := printf "%s.json" (strings.TrimSuffix "/" .RelPermalink) -}}
+
+{{/* Clean multi-line podcast_categories into a slice of trimmed parts */}}
+{{- $categoryParts := slice -}}
+{{- with $meta.podcast_categories -}}
+  {{- range split . "\n" -}}
+    {{- $t := trim . " \t" -}}
+    {{- if $t }}{{ $categoryParts = $categoryParts | append $t }}{{ end -}}
+  {{- end -}}
+{{- end -}}
+
+<footer class="vox-episode-footer">
+
+  {{/* 1. Episode identity — podcast, author, categories (each category
+       linked to its tag page) */}}
+  {{- if or $podcast $meta.author (gt (len $categoryParts) 0) }}
+    <div class="vox-footer-identity">
+      {{- with $podcast }}
+        {{- if $meta.podcast_site -}}
+          <strong><a href="{{ $meta.podcast_site }}">{{ . }}</a></strong>
+        {{- else -}}
+          <strong>{{ . }}</strong>
+        {{- end -}}
+      {{- end }}
+      {{- with $meta.author }} — {{ . }}{{- end }}
+      {{- if gt (len $categoryParts) 0 }}
+        <br><span class="vox-footer-muted">
+          {{- range $i, $c := $categoryParts -}}
+            {{- if $i }} › {{ end -}}
+            <a href="{{ printf "/tags/%s/" (urlize $c) | relURL }}">{{ $c }}</a>
+          {{- end -}}
+          {{- with $meta.podcast_type }} · {{ . }}{{ end -}}
+        </span>
+      {{- end }}
+    </div>
+  {{- end }}
+
+  {{/* 2. Aliases (alternate titles) — sits between category and date */}}
+  {{- with .Params.aliases }}
+    {{- if gt (len .) 0 }}
+      <div class="vox-footer-aliases vox-footer-muted">
+        {{ if $isEN }}Also known as{{ else }}Também conhecido como{{ end }}:
+        {{ delimit . ", " }}
+      </div>
+    {{- end }}
+  {{- end }}
+
+  {{/* 3. Participants (linked to their tag pages) + audio-source disclaimer */}}
+  {{- with .Params.participants }}
+    <div class="vox-footer-participants">
+      <div>
+        {{ if $isEN }}Participants{{ else }}Participantes{{ end }}:
+        {{- range $i, $p := . }}
+          {{- if $i }},{{ end }}
+          <a href="{{ printf "/tags/%s/" (urlize $p) | relURL }}">{{ $p }}</a>
+        {{- end }}
+      </div>
+      <em class="vox-footer-muted vox-footer-participants-note">
+        {{- if $isEN -}}
+          (names obtained from audio. Sorry! 🙈 Spelling may be incorrect)
+        {{- else -}}
+          (nomes obtidos a partir do áudio. Desculpe! 🙈 A grafia pode estar incorreta)
+        {{- end -}}
+      </em>
+    </div>
+  {{- end }}
+
+  {{/* 4. Technical links — JSON sidecar + reader transcript + UUID */}}
+  <div class="vox-footer-tech vox-footer-muted">
+    {{- if $hasTranscript }}
+      <a href="{{ printf "/transcript/?json=%s" $jsonURL | relURL }}">
+        {{- if $isEN }}Read transcript{{ else }}Ler transcrição{{ end -}}
+      </a>
+      ·
+    {{- end }}
+    <a href="{{ $jsonURL }}">
+      {{- if $isEN -}}Additional data & transcript (JSON)
+      {{- else -}}Dados adicionais e transcrição (JSON){{- end -}}
+    </a>
+    {{- with .Params.uuid }} · UUID <code>{{ . }}</code>{{- end }}
+  </div>
+
+  {{/* 5. Publication — date + source (two lines) */}}
+  {{- with .Params.published }}
+    <div class="vox-footer-published vox-footer-muted">
+      <div>
+        {{ if $isEN }}Published{{ else }}Publicado em{{ end }}
+        <time datetime="{{ . }}">{{ dateFormat "02 Jan 2006" . }}</time>
+      </div>
+      {{- with $meta.source_url }}
+        <div class="vox-footer-source">PocketCasts — <a href="{{ . }}">{{ . }}</a></div>
+      {{- end }}
+    </div>
+  {{- end }}
+
+  {{/* 6. Legal disclaimer */}}
+  <div class="vox-footer-legal">
+    {{- if $isEN -}}
+      <p>The content on this page belongs to its original authors and creators.</p>
+      <p><a href="https://github.com/thluiz/vox">Vox</a> is a non-profit
+      aggregator/archive built for collective memory and accessibility — it
+      serves no commercial purpose and all episodes are already publicly
+      distributed by their respective podcasts.</p>
+      <p>Vox's compilation layer — annotations, metadata and curation — is
+      released under
+      <a href="https://creativecommons.org/licenses/by-sa/4.0/" rel="license">CC BY-SA 4.0</a>.
+      The original episode content remains under the rights of its
+      respective authors.</p>
+      <p>If you are an author and want your content removed, please
+      <a href="https://github.com/thluiz/vox/issues">open an issue on GitHub</a>.</p>
+    {{- else -}}
+      <p>O conteúdo desta página pertence a seus autores e criadores originais.</p>
+      <p>O <a href="https://github.com/thluiz/vox">Vox</a> é um agregador/arquivo
+      sem fins lucrativos, feito para memória coletiva e acessibilidade — não
+      possui qualquer finalidade comercial e todos os episódios já são
+      distribuídos publicamente pelos seus respectivos podcasts.</p>
+      <p>A camada de compilação do Vox — anotações, metadados e curadoria —
+      é disponibilizada sob
+      <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.pt_BR" rel="license">CC BY-SA 4.0</a>.
+      O conteúdo original dos episódios permanece sob os direitos de seus
+      respectivos autores.</p>
+      <p>Se você é autor e deseja que o conteúdo seja removido, por favor
+      <a href="https://github.com/thluiz/vox/issues">abra uma issue no GitHub</a>.</p>
+    {{- end -}}
+  </div>
+
+  {{/* 7. Back to top */}}
+  <div class="vox-footer-top">
+    <a href="#content">
+      {{- if $isEN }}↑ Back to top{{ else }}↑ Voltar ao topo{{ end -}}
+    </a>
+  </div>
+
+</footer>

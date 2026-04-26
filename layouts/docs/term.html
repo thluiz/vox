@@ -1,0 +1,37 @@
+{{ define "main" }}
+  <div class='hx:mx-auto hx:flex hextra-max-page-width'>
+    {{ partial "sidebar.html" (dict "context" . "disableSidebar" true "displayPlaceholder" true) }}
+    <article class="hx:w-full hx:break-words hx:flex hx:min-h-[calc(100vh-var(--navbar-height))] hx:min-w-0 hx:justify-center hx:pb-8">
+      <main id="content" class="hx:w-full hx:min-w-0 hextra-max-content-width hx:px-6 hx:pt-4 hx:md:px-12">
+        <h1 class="hx:mt-2 hx:text-4xl hx:font-bold hx:tracking-tight">
+          #{{ .Title }}
+          <span class="hx:text-lg hx:font-normal hx:text-gray-500">({{ len .Pages }} episodes)</span>
+        </h1>
+        <div class="hx:mt-6">
+          <ul class="hx:list-none hx:p-0">
+            {{ range .Pages }}
+              <li class="hx:mb-4 hx:pb-4 hx:border-b hx:border-gray-200 hx:dark:border-neutral-800">
+                <div class="vox-meta" style="margin-bottom:0.2rem">
+                  {{- with .Params.lang -}}
+                    {{- if eq . "pt" -}}<img src="https://flagcdn.com/w20/br.png" width="14" height="10" alt="BR" class="vox-flag" />
+                    {{- else if eq . "en" -}}<img src="https://flagcdn.com/w20/us.png" width="14" height="10" alt="US" class="vox-flag" />
+                    {{- else -}}<span>{{ upper . }}</span>
+                    {{- end -}}
+                  {{- end -}}
+                  {{- with .Date }}<span>{{ .Format "02 Jan 2006" }}</span>{{ end -}}
+                  {{- if .WordCount }}<span>,</span><span>{{ .ReadingTime }} min</span>{{ end -}}
+                </div>
+                <a href="{{ .RelPermalink }}" class="hx:text-primary-600 hx:dark:text-primary-400 hx:font-semibold">
+                  {{ .Title }}
+                </a>
+                {{ with .Description }}
+                  <p class="hx:text-sm hx:text-gray-500 hx:dark:text-gray-400 hx:mt-1 hx:mb-0">{{ . | truncate 150 }}</p>
+                {{ end }}
+              </li>
+            {{ end }}
+          </ul>
+        </div>
+      </main>
+    </article>
+  </div>
+{{ end }}

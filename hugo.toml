@@ -1,0 +1,164 @@
+baseURL = "https://vox.thluiz.com"
+title = "Vox"
+languageCode = "pt-BR"
+theme = "hextra"
+themesDir = 'E:\'
+
+# Disable Hugo alias processing — frontmatter "aliases" are Obsidian wikilink
+# aliases, not URL redirects.
+disableAliases = true
+disablePathToLower = true
+
+# Ignore patterns matching Quartz config
+ignoreFiles = ['\.obsidian', '\.trash', 'README\.md', '.*\.private\.md']
+
+enableGitInfo = false
+enableRobotsTXT = false
+
+
+# Note: `lang` in frontmatter is deprecated since Hugo v0.144 (warning on build).
+# When Hugo removes the special handling, it becomes a plain .Params.lang field —
+# which is exactly what we want (episode language metadata, not routing).
+
+# Content mounts: overlay _index.md from content-home (Hugo needs _index.md
+# for branch bundles), then mount vox-content excluding the Obsidian index.md
+# which Hugo treats as a leaf bundle and swallows all content.
+[module]
+  [[module.mounts]]
+    source = "content-home"
+    target = "content"
+  [[module.mounts]]
+    source = 'E:/vox-content'
+    target = "content"
+    excludeFiles = "index.md"
+  [[module.mounts]]
+    source = "assets"
+    target = "assets"
+  [[module.mounts]]
+    source = "layouts"
+    target = "layouts"
+  [[module.mounts]]
+    source = "static"
+    target = "static"
+
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
+
+[taxonomies]
+  tag = "tags"
+
+[params]
+  description = "Vox — curadoria de podcasts e artigos"
+  dateFormat = "2006-01-02"
+
+  [params.theme]
+    default = "dark"
+
+  [params.navbar]
+    displayTitle = true
+    displayLogo = false
+
+  [params.footer]
+    displayPoweredBy = false
+
+  [params.page]
+    width = "wide"
+
+[menu]
+  [[menu.main]]
+    name = "Tags"
+    url = "/tags/"
+    weight = 1
+
+  [[menu.main]]
+    name = "Arquivo"
+    identifier = "archive"
+    weight = 2
+
+  [[menu.main]]
+    name = "2026"
+    parent = "archive"
+    url = "/2026/"
+    weight = 1
+  [[menu.main]]
+    name = "2025"
+    parent = "archive"
+    url = "/2025/"
+    weight = 2
+  [[menu.main]]
+    name = "2024"
+    parent = "archive"
+    url = "/2024/"
+    weight = 3
+  [[menu.main]]
+    name = "2023"
+    parent = "archive"
+    url = "/2023/"
+    weight = 4
+  [[menu.main]]
+    name = "2022"
+    parent = "archive"
+    url = "/2022/"
+    weight = 5
+  [[menu.main]]
+    name = "2021"
+    parent = "archive"
+    url = "/2021/"
+    weight = 6
+  [[menu.main]]
+    name = "2020"
+    parent = "archive"
+    url = "/2020/"
+    weight = 7
+  [[menu.main]]
+    name = "2019"
+    parent = "archive"
+    url = "/2019/"
+    weight = 8
+  [[menu.main]]
+    name = "2018"
+    parent = "archive"
+    url = "/2018/"
+    weight = 9
+  [[menu.main]]
+    name = "2017"
+    parent = "archive"
+    url = "/2017/"
+    weight = 10
+  [[menu.main]]
+    name = "2016"
+    parent = "archive"
+    url = "/2016/"
+    weight = 11
+  [[menu.main]]
+    name = "2015"
+    parent = "archive"
+    url = "/2015/"
+    weight = 12
+  [[menu.main]]
+    name = "2014"
+    parent = "archive"
+    url = "/2014/"
+    weight = 13
+  [[menu.main]]
+    name = "2013"
+    parent = "archive"
+    url = "/2013/"
+    weight = 14
+  [[menu.main]]
+    name = "2012"
+    parent = "archive"
+    url = "/2012/"
+    weight = 15
+  [[menu.main]]
+    name = "2011"
+    parent = "archive"
+    url = "/2011/"
+    weight = 16
+  [[menu.main]]
+    name = "2010"
+    parent = "archive"
+    url = "/2010/"
+    weight = 17

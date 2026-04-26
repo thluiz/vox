@@ -5,3 +5,10 @@
 .claude/settings.local.json
 logs/
 vox-suggest-annotations.log
+public/
+.hugo_build.lock
+resources/
+node_modules/
+public-test/
+test-results/
+playwright-report/

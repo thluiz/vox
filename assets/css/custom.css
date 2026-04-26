@@ -1,0 +1,160 @@
+/* Vox — Quartz-matching layout via CSS variable overrides */
+
+/* Fonts loaded via <link> in head-end.html partial */
+
+/* ── Override Hextra/Tailwind variables to match Quartz scale ── */
+:root, :host {
+  /* Scale down the Tailwind text sizes */
+  --hx-text-xs: 0.7rem;
+  --hx-text-sm: 0.8rem;
+  --hx-text-base: 0.85rem;
+  --hx-text-lg: 0.95rem;
+  --hx-text-xl: 1.05rem;
+  --hx-text-2xl: 1.3rem;
+  --hx-text-3xl: 1.5rem;
+  --hx-text-4xl: 1.75rem;
+  --hx-text-5xl: 2.25rem;
+
+  /* Tighter spacing base */
+  --hx-spacing: 0.22rem;
+
+  /* Fonts */
+  --hx-font-sans: 'Source Sans Pro', 'Source Sans Pro', ui-sans-serif, system-ui, sans-serif;
+  --hx-font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
+}
+
+/* Header font */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Schibsted Grotesk', sans-serif;
+}
+
+/* ── Sidebar — narrower ── */
+@media (min-width: 768px) {
+  .hextra-sidebar-container { width: 10rem; }
+}
+
+/* Sidebar scrollbar — hidden until hover */
+.hextra-sidebar-container .hextra-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.hextra-sidebar-container .hextra-scrollbar:hover {
+  scrollbar-color: rgba(150,150,150,.5) transparent;
+}
+
+/* ── Content max-width — use full available space ── */
+.hextra-max-content-width { max-width: none; }
+
+/* ── Vox-specific components ── */
+
+.vox-meta {
+  display: flex; align-items: center; gap: 0.3rem;
+  font-size: 0.78rem; color: #6b7280;
+  margin: 0 0 0.1rem 0; line-height: 1;
+}
+:is(.dark) .vox-meta { color: #9ca3af; }
+.vox-flag { display: inline; vertical-align: middle; margin: 0; }
+
+/* Anchor scroll offset — compensate for fixed navbar */
+[id] { scroll-margin-top: 4rem; }
+
+/* Prevent prose styling from centering images inside vox-meta */
+.content .vox-meta { text-align: left; }
+.content .vox-meta img { display: inline; margin: 0; }
+
+.vox-tags {
+  display: flex; flex-wrap: wrap; gap: 0.25rem;
+  margin: 0.1rem 0 0.2rem 0; padding: 0;
+}
+.vox-tags a {
+  display: inline-block; font-size: 0.7rem; font-weight: 600;
+  padding: 0.08rem 0.32rem; border-radius: 8px; text-decoration: none;
+  background: rgba(143,159,169,0.15); color: #4e4e4e;
+}
+:is(.dark) .vox-tags a { color: #d4d4d4; }
+.vox-tags a:hover { background: rgba(143,159,169,0.3); }
+
+.vox-title {
+  font-size: 1.75rem; font-weight: 700; line-height: 1.2;
+  margin: 0.1rem 0 0.15rem 0; padding: 0;
+}
+
+/* ── Content prose — Quartz values ── */
+.content { color: #4e4e4e; }
+:is(.dark) .content { color: #d4d4d4; }
+.content p { line-height: 1.6; }
+.content > hr:first-of-type { display: none; }
+.content a { font-weight: 600; }
+.content h1, .content h2, .content h3, .content h4 { color: #2b2b2b; }
+:is(.dark) .content h1, :is(.dark) .content h2,
+:is(.dark) .content h3, :is(.dark) .content h4 { color: #ebebec; }
+
+/* Quartz body color */
+body { color: #4e4e4e; }
+:is(.dark) body { color: #d4d4d4; }
+
+/* ── Episode footer ── */
+.vox-episode-footer {
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(143,159,169,0.3);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #4e4e4e;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+:is(.dark) .vox-episode-footer { color: #d4d4d4; border-top-color: rgba(143,159,169,0.15); }
+.vox-episode-footer a { text-decoration: underline; }
+.vox-footer-muted { color: #6b7280; }
+:is(.dark) .vox-footer-muted { color: #9ca3af; }
+.vox-footer-identity strong { font-weight: 600; font-size: 1rem; }
+.vox-footer-identity strong a { color: inherit; }
+.vox-footer-identity .vox-footer-muted { font-size: 0.8rem; }
+.vox-footer-participants a { color: inherit; }
+.vox-footer-participants-note { display: inline-block; margin-top: 0.1rem; font-size: 0.75rem; font-style: italic; }
+.vox-footer-source { font-size: 0.78rem; word-break: break-all; }
+.vox-footer-source a { color: inherit; }
+.vox-footer-tech { font-size: 0.78rem; padding-top: 0.25rem; border-top: 1px dashed rgba(143,159,169,0.2); }
+.vox-footer-tech code { font-size: 0.72rem; }
+.vox-footer-legal { margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid rgba(143,159,169,0.3); font-size: 0.8rem; }
+:is(.dark) .vox-footer-legal { border-top-color: rgba(143,159,169,0.15); }
+.vox-footer-legal p { margin: 0 0 0.4rem 0; }
+.vox-footer-legal p:last-child { margin-bottom: 0; }
+.vox-footer-top { text-align: right; font-size: 0.8rem; }
+
+/* ── Transcript page ── */
+.vox-transcript-page h1 { margin-bottom: 0.25rem; }
+.vox-transcript-muted { color: rgba(143,159,169,0.9); font-size: 0.85rem; }
+:is(.dark) .vox-transcript-muted { color: rgba(165,181,191,0.75); }
+.vox-transcript-help { margin-top: 1.5rem; font-style: italic; }
+
+#tr-back { margin: 0 0 0.5rem 0; font-size: 0.85rem; }
+#tr-toc-nav { margin: 1rem 0 1.5rem 0; padding: 0.75rem 1rem; border: 1px solid rgba(143,159,169,0.25); border-radius: 6px; }
+#tr-toc-nav h2 { font-size: 0.95rem; margin: 0 0 0.5rem 0; }
+#tr-toc { list-style: none; padding: 0; margin: 0; }
+#tr-toc li { margin: 0.15rem 0; }
+#tr-toc a { text-decoration: none; display: inline-block; padding: 0.2rem 0; }
+#tr-toc a:hover { text-decoration: underline; }
+
+.vox-tr-time { font-family: var(--hx-font-mono, monospace); font-size: 0.78rem; color: rgba(143,159,169,0.9); margin-right: 0.4rem; white-space: nowrap; }
+:is(.dark) .vox-tr-time { color: rgba(165,181,191,0.7); }
+
+.vox-tr-section { border-top: 1px solid rgba(143,159,169,0.2); padding: 0.5rem 0; }
+.vox-tr-section:last-of-type { border-bottom: 1px solid rgba(143,159,169,0.2); }
+.vox-tr-section > summary { cursor: pointer; padding: 0.5rem 0; list-style: none; }
+.vox-tr-section > summary::-webkit-details-marker { display: none; }
+.vox-tr-section > summary::before { content: '▸'; display: inline-block; width: 1em; color: rgba(143,159,169,0.7); transition: transform 0.12s; }
+.vox-tr-section[open] > summary::before { transform: rotate(90deg); }
+.vox-tr-topic { font-weight: 600; }
+.vox-tr-summary { margin: 0.25rem 0 0.75rem 1.5rem; font-size: 0.85rem; font-style: italic; color: rgba(143,159,169,0.95); }
+:is(.dark) .vox-tr-summary { color: rgba(200,210,220,0.75); }
+.vox-tr-lines { margin: 0.25rem 0 0.75rem 1.5rem; }
+.vox-tr-line { margin: 0.35rem 0; line-height: 1.5; }
+
+@media (max-width: 560px) {
+  .vox-tr-summary, .vox-tr-lines { margin-left: 0.75rem; }
+  .vox-tr-line .vox-tr-time { display: block; margin-bottom: 0.1rem; }
+}
+

@@ -1,0 +1,90 @@
+{{ define "main" }}
+  <div class='hx:mx-auto hx:flex hextra-max-page-width'>
+    {{ partial "sidebar.html" (dict "context" .) }}
+    {{ partial "toc.html" . }}
+    <article class="hx:w-full hx:break-words hx:flex hx:min-h-[calc(100vh-var(--navbar-height))] hx:min-w-0 hx:justify-center hx:pb-4">
+      <main id="content" class="hx:w-full hx:min-w-0 hextra-max-content-width hx:px-4 hx:pt-1 hx:md:px-6">
+        <div class="content">
+          {{/* Home page — tags, recent posts, about */}}
+          {{ if .IsHome }}
+
+            {{- $featuredTags := slice "culture" "society" "technology" "business" "careers" "news" "philosophy" "science" "productivity" "education" -}}
+            <div class="vox-tags" style="margin-bottom:0.5rem">
+              {{- range $featuredTags -}}
+                {{- with site.GetPage (printf "/tags/%s" .) -}}
+                  <a href="{{ .RelPermalink }}">#{{ .Title }}</a>
+                {{- end -}}
+              {{- end -}}
+            </div>
+
+            <h1 class="vox-title">Vox</h1>
+
+            <h2 style="font-size:1.2rem;margin-top:0.8rem;margin-bottom:0.4rem">Publicações Recentes</h2>
+            <ul style="padding-left:1.25rem;margin:0 0 1rem 0">
+              {{ range (first 10 site.RegularPages) }}
+                <li style="margin-bottom:0.15rem">
+                  <a href="{{ .RelPermalink }}" style="font-size:0.85rem;font-weight:600">{{ .Title }}</a>
+                  <span style="color:#6b7280;font-size:0.78rem"> — {{ .Date.Format "2006-01-02" }}</span>
+                </li>
+              {{ end }}
+            </ul>
+
+            {{ .Content }}
+          {{ else }}
+          {{ if .Title }}
+          <h1 class="vox-title">{{ partial "utils/title" . }}
+            <span style="font-size:0.5em;font-weight:400;color:#6b7280"> ({{ len .RegularPagesRecursive }} episodes)</span>
+          </h1>
+          {{ end }}
+
+          {{/* Group episodes by week path segment */}}
+          {{ $weekGroups := dict }}
+          {{ range .RegularPagesRecursive }}
+            {{ $parts := split (strings.TrimPrefix "/" .RelPermalink) "/" }}
+            {{ if ge (len $parts) 4 }}
+              {{ $weekKey := upper (index $parts 2) }}
+              {{ $existing := index $weekGroups $weekKey | default slice }}
+              {{ $weekGroups = merge $weekGroups (dict $weekKey ($existing | append .)) }}
+            {{ end }}
+          {{ end }}
+
+          {{ $weekKeys := slice }}
+          {{ range $k, $_ := $weekGroups }}
+            {{ $weekKeys = $weekKeys | append $k }}
+          {{ end }}
+
+          {{ range sort $weekKeys "value" "desc" }}
+            {{ $weekName := . }}
+            {{ $pages := index $weekGroups $weekName }}
+            <h2 id="{{ $weekName }}" style="font-size:1.1rem;margin-top:1.2rem;margin-bottom:0.4rem">
+              {{ $weekName }} <span style="font-size:0.8em;font-weight:400;color:#6b7280">({{ len $pages }})</span>
+            </h2>
+            <ul style="list-style:none;padding:0;margin:0">
+              {{ range $pages }}
+                <li style="margin-bottom:0.7rem;padding-bottom:0.7rem;border-bottom:1px solid #e5e5e5">
+                  <div class="vox-meta" style="margin-bottom:0.2rem">
+                    {{- with .Params.lang -}}
+                      {{- if eq . "pt" -}}<img src="https://flagcdn.com/w20/br.png" width="14" height="10" alt="BR" class="vox-flag" />
+                      {{- else if eq . "en" -}}<img src="https://flagcdn.com/w20/us.png" width="14" height="10" alt="US" class="vox-flag" />
+                      {{- else -}}<span>{{ upper . }}</span>
+                      {{- end -}}
+                    {{- end -}}
+                    {{- with .Date }}<span>{{ .Format "02 Jan 2006" }}</span>{{ end -}}
+                    {{- if .WordCount }}<span>,</span><span>{{ .ReadingTime }} min</span>{{ end -}}
+                  </div>
+                  <a href="{{ .RelPermalink }}" class="hx:text-primary-600 hx:dark:text-primary-400 hx:font-semibold">
+                    {{ .Title }}
+                  </a>
+                  {{ with .Description }}
+                    <p class="hx:text-sm hx:text-gray-500 hx:dark:text-gray-400" style="margin:0.1rem 0 0 0">{{ . | truncate 150 }}</p>
+                  {{ end }}
+                </li>
+              {{ end }}
+            </ul>
+          {{ end }}
+          {{ end }}{{/* close IsHome else */}}
+        </div>
+      </main>
+    </article>
+  </div>
+{{ end }}
