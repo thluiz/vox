@@ -8,6 +8,138 @@ and an explorer sidebar organised by year/week.
 
 ---
 
+## v2.2.0 — 2026-04-25 — Playwright test suite & onboarding doc
+
+### What changed
+
+A regression suite covering the transcript feature, the i18n label
+swap, and a console-error gate against the Hextra integration quirks
+that surfaced during v2.1.0. The suite is the safety net for future
+Hextra theme upgrades — if any of the patched quirks regress, the
+console spec fails immediately.
+
+- **`tests/`** (3 specs, 8 cases, ~3.4 s parallel)
+  - `transcript.spec.ts` — TOC built from `timeline[]`, lazy
+    `<details>` render (lines absent before click, present after,
+    no duplication on close+reopen), footer "Ler transcrição" link,
+    error message when `?json=` missing
+  - `i18n.spec.ts` — PT episode keeps Portuguese labels; EN episode
+    swaps to English (`Topics`, `back to episode`, `Tap a topic`);
+    `<html lang>` updated to match `data.lang`
+  - `console.spec.ts` — zero `console.error`, `pageerror`, or HTTP
+    4xx/5xx on `/transcript/?json=...` and on a normal episode page
+- **`package.json` + `playwright.config.ts`** — `npm test`,
+  `baseURL` parameterized via `VOX_TEST_BASE_URL` (default
+  `http://localhost:1313`, override to hit prod)
+- **`CLAUDE.md`** at repo root — project layout, dev/build/publish/
+  test workflows, and the catalog of Hextra quirks needing
+  overrides (`flexsearch.js` destructure crash, `menu.js` sidebar
+  null-check, mobile-sidebar limitation). Auto-loaded by future
+  Claude Code sessions so the discoveries don't have to be redone.
+
+### Why a custom config instead of the Playwright MCP
+
+The `mcp__plugin_autoimplement_playwright-test__*` tools enforce
+their own seed/project shape and don't read a project's local
+`playwright.config.ts` — "Project chromium not found" / "seed test
+not found" even with valid local definitions. `npx playwright test`
+against the local config worked first try.
+
+### Operating notes
+
+- `node_modules/`, `test-results/`, `playwright-report/` ignored;
+  `package-lock.json` and the config tracked
+- Tests need an HTTP target — either a local `hugo server` on
+  `1313` or `VOX_TEST_BASE_URL` pointing at production. They do
+  not start a server themselves
+- The console spec is intentionally strict (`expect(errs).toEqual([])`)
+  — any new noise fails loudly, including 404s on missing assets,
+  which is the canary that caught the v2.0.4 CSS-hash bug pattern
+
+## v2.1.0 — 2026-04-25 — Reader-friendly transcript page
+
+### What changed
+
+A new standalone reader at `/transcript/?json=<sidecar-path>` so
+visitors (especially on older mobile devices that struggled to
+render the full transcript inline on the episode page) can read
+episode transcripts paginated by topic, with lazy DOM insertion.
+
+- **`/transcript/` page** — single Hugo branch bundle
+  (`content-home/transcript/_index.md` + `layouts/transcript/list.html`)
+  rendered through Hextra's `baseof` so it shares the site chrome.
+  Frontmatter:
+  - `type: transcript` — escapes Hextra's `docs` cascade so the
+    custom layout is picked up
+  - `_build.list: never` — keeps "Transcrição (0)" out of every
+    other page's sidebar tree
+  - `sidebar.hide: true` — renders an empty `<aside>` so Hextra's
+    `menu.js` doesn't crash (see "Console-error fixes" below)
+- **`static/js/transcript.js`** — vanilla JS (no framework, no
+  build step). Reads `?json=` from `location.search`, fetches the
+  episode JSON sidecar, parses transcript lines (`[HH:MM:SS] text`
+  format), and segments them by `timeline[]` (one `<details>` per
+  topic, with the timeline `summary` as a topic blurb). Lines are
+  rendered into the DOM only when the user opens the topic; reopen
+  is idempotent. Handles a synthetic "Introdução" section for
+  pre-timeline lines and falls back to 5-minute blocks if a
+  transcript has no timeline. `<html lang>` and all UI labels
+  (back, topics heading, help, intro section name, errors) swap
+  between PT/EN based on the JSON's `lang` field
+- **`layouts/_partials/custom/episode-footer.html`** — added a
+  conditional "Ler transcrição" / "Read transcript" link next to
+  the existing "Dados adicionais e transcrição (JSON)" technical
+  link, only when the sidecar has a non-empty `transcript` field
+- **`assets/css/custom.css`** — mobile-first styles for the
+  transcript page (collapsed `<details>` with timestamp + topic
+  title, italic summary, monospaced inline timestamps that drop
+  to a separate line below 560 px viewports)
+
+### "Arquivo" navigation menu
+
+The Hextra mobile sidebar (`_partials/sidebar.html:31`) renders
+`site.Menus.main` only — not the `RegularPages`/`Sections` tree
+the desktop sidebar uses. With Vox's main menu being just "Tags",
+the year/week navigation present on desktop was completely
+unreachable on mobile.
+
+- **`hugo.toml`** — added a top-level `Arquivo` menu entry
+  (`identifier = "archive"`) plus one child per year (2010-2026)
+  with `parent = "archive"`. Renders as a navbar dropdown on
+  desktop and as an expanded list inside the mobile hamburger.
+  Maintenance: one new entry per year going forward
+
+### Console-error fixes (Hextra integration)
+
+While testing the new page, two pre-existing Hextra crashes
+surfaced because the page legitimately doesn't render every
+DOM scaffold the theme's bundled JS assumes:
+
+- **`flexsearch.js`** destructures
+  `getActiveSearchElement(...)` without a null-check;
+  `getActiveSearchElement` returns `undefined` when 0 or >1
+  `.hextra-search-wrapper` elements are visible.
+  **Fix:** `layouts/_partials/scripts/search.html` overrides the
+  theme partial and skips loading `flexsearch.js` when the page
+  has `excludeSearch: true` in frontmatter
+- **`core/menu.js:13`** (`syncAriaHidden`) calls
+  `sidebarContainer.removeAttribute(...)` without checking if the
+  element exists.
+  **Fix:** the transcript layout calls
+  `partial "sidebar.html" (dict "context" . "disableSidebar" true)`
+  to render the `<aside>` (empty) the JS expects
+
+Both are upstream bugs; the workarounds are scoped to opted-out
+pages so the rest of the site is untouched.
+
+### Publish script change
+
+- **`vox-publish-windows.ps1`** — added `transcript` to the
+  incremental-mode asset whitelist (joining `css`, `js`, `images`,
+  `scripts` from v2.0.4) so the standalone `/transcript/index.html`
+  is hashed and re-uploaded on layout edits without needing
+  `-ForceFullSync`
+
 ## v2.0.4 — 2026-04-08 — Publish script: static asset re-check
 
 ### The bug
