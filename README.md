@@ -1,90 +1,118 @@
 # Vox
 
-Infrastructure for my personal digital garden — a public, interconnected collection of notes,
-ideas, and podcast annotations built with [Quartz v4](https://quartz.jzhao.xyz/).
+Publishing infrastructure for [vox.thluiz.com](https://vox.thluiz.com) — a
+public archive of podcast transcriptions and annotations, organised
+year/week/episode and cross-linked through tags.
 
-## What is a Digital Garden?
+The site is built with **Hugo** + the [Hextra](https://imfing.github.io/hextra/)
+theme and deployed as a static site to **AWS S3 + CloudFront**.
 
-A digital garden is a continuously growing and evolving collection of notes — somewhere between
-a blog and a wiki. Unlike a blog, posts are not finished articles published at a specific time;
-they are living notes that get updated, linked to other notes, and refined over time.
-
-This garden follows loosely the [Zettelkasten](https://zettelkasten.de/) method: each note is
-atomic (focused on a single idea), linked to related notes through [[wikilinks]], and tagged to
-enable lateral discovery. The result is a network of ideas rather than a linear archive.
+> **History note:** Vox shipped on Quartz v4 + Azure Static Web Apps until early
+> 2026. v3.0.0 marks the consolidation of the migration to Hugo. The legacy
+> Quartz scaffolding (`quartz.config.ts`, `install-vox.sh`, `vox-publish.sh`,
+> `patches-quartz-archived/`) is kept in the tree as historical reference;
+> nothing in the active pipeline uses it.
 
 ## What's in this repo
 
-This repository contains the **publishing infrastructure** for the garden:
+| Path | Purpose |
+|---|---|
+| `hugo.toml` | Hugo config: theme, mounts, menu, taxonomies |
+| `content-home/` | Site-level pages that overlay the content mount (home `_index.md`, `transcript/`) |
+| `layouts/` | Hextra template overrides — episode footer, transcript reader, search/sidebar guards |
+| `assets/css/custom.css` | Custom styles (concatenated by Hextra) |
+| `static/` | Files served as-is (`/js/transcript.js`, `robots.txt`) |
+| `vox-publish-windows.ps1` | Build + incremental S3 deploy + CloudFront invalidation |
+| `tests/` | Playwright e2e suite (transcript, i18n, console-error gate) |
+| `CLAUDE.md` | Onboarding doc — repo layout, workflows, Hextra quirks catalogue |
+| `CHANGELOG.md` | Release notes (the "why" behind each version) |
+| `.env.example` | AWS credentials + bucket / distribution IDs template |
 
-| File | Purpose |
-|------|---------|
-| `quartz.config.ts` | Quartz site configuration (title, plugins, graph, backlinks) |
-| `quartz.layout.ts` | Page layout components |
-| `custom.scss` | Custom styles |
-| `install-vox.sh` | One-time setup: clones Quartz, creates symlinks, registers `vox-publish` in PATH |
-| `vox-publish.sh` | Build + deploy pipeline (Quartz build → Azure Static Web Apps) |
-| `patches/` | Quartz monkey-patches applied at build time (see below) |
-| `.env.example` | Environment variable template (copy to `.env`, fill with real values) |
+The actual content (episode `.md` + JSON sidecars across 17 years of podcasts)
+lives in a separate repo: [vox-content](https://github.com/thluiz/vox-content)
+— mounted into Hugo's `content/` via `hugo.toml`.
 
-The content (actual notes) lives in a separate repository: [vox-content](https://github.com/thluiz/vox-content).
+## Features
 
-## Quartz patches
-
-Quartz is used as-is from upstream — we don't maintain a fork. Instead, small adjustments
-live as `.patch` files in `patches/` and are applied automatically by `vox-publish.sh`
-before each build.
-
-**Why patches instead of a fork?**
-
-- The changes are cosmetic and site-specific (OG image format, meta tags, layout tweaks) —
-  not things that would be accepted as upstream PRs.
-- Maintaining a fork requires regular rebasing against upstream, which is disproportionate
-  overhead for a handful of one-line changes.
-- `git apply` is atomic: a patch either applies cleanly or fails entirely, so a Quartz
-  update will never produce a silently broken build. If upstream changes the same lines,
-  the build aborts and the patch can be regenerated in minutes.
-- Patches are self-documenting (readable diffs) and trivially reproducible.
-
-| Patch | What it does |
-|-------|-------------|
-| `ogImage.patch` | OG images as PNG instead of WebP (WhatsApp/Meta compatibility), adds `og:image:secure_url`, fixes mime type detection, reorders meta tags per OG spec |
-| `Head.patch` | Adds `fb:app_id` meta tag and `noindex, nofollow` for staging control |
-| `ContentMeta.patch` | Language flags (BR/US) in post metadata based on frontmatter `lang` field |
-| `contentMeta-scss.patch` | Styling for the language flag badges (alignment, border, spacing) |
-
-The publish script applies patches before building and cleans up after, so the local
-Quartz checkout stays in sync with upstream and can be updated with a simple `git pull`.
-
+- **Episode pages** with rich metadata footer (podcast, author, participants
+  linked to tags, aliases, date, source URL, JSON sidecar download)
+- **Reader-friendly transcript page** at `/transcript/?json=<sidecar>` —
+  segments lines by topic from `timeline[]`, lazy-renders into `<details>` on
+  open, swaps PT/EN labels from the episode's `lang` field
+- **Tag system** — every podcast category, participant, and topic-key tag
+  is browsable at `/tags/<slug>/`
+- **Year / Week hierarchy** — sidebar tree on desktop; "Arquivo" navbar
+  dropdown on mobile (workaround for Hextra's mobile-sidebar limitation,
+  see CLAUDE.md)
+- **Search** (Hextra flexsearch, opt-out per page via `excludeSearch: true`)
+- **Incremental publish** — `vox-publish-windows.ps1` only uploads files
+  whose hash differs from the last manifest, then invalidates CloudFront
 
 ## Setup
 
 ```bash
-# 1. Clone this repo on your build machine
-git clone https://github.com/thluiz/vox.git ~/vox
+# 1. Clone
+git clone https://github.com/thluiz/vox.git E:/Vox-Hugo
 
-# 2. Copy and fill the environment file (never commit .env)
-cp ~/vox/.env.example ~/vox/.env
-nano ~/vox/.env
+# 2. Copy and fill the AWS env file
+cp .env.example .env  # edit with your S3 bucket + CloudFront distribution
 
-# 3. Run the installer
-bash ~/vox/install-vox.sh
+# 3. Hextra theme alongside this repo (in E:/hextra)
+git clone https://github.com/imfing/hextra.git E:/hextra
 
-# 4. Publish
-vox-publish
+# 4. Content repo alongside (in E:/vox-content)
+git clone https://github.com/thluiz/vox-content.git E:/vox-content
+
+# 5. Test deps (optional — for npm test)
+npm install
+npx playwright install chromium
+```
+
+## Workflows
+
+**Local dev:**
+```bash
+hugo server -p 1313 --disableFastRender
+```
+
+**Publish (incremental — default):**
+```bash
+pwsh -NoProfile -File vox-publish-windows.ps1
+```
+
+**Publish (full sync — needed after layout/CSS/`hugo.toml` changes):**
+```bash
+pwsh -NoProfile -File vox-publish-windows.ps1 -ForceFullSync
+```
+
+**Test:**
+```bash
+hugo server -p 1313 &
+npm test                                            # local
+VOX_TEST_BASE_URL=https://vox.thluiz.com npm test  # production
 ```
 
 ## Requirements
 
-- Node.js 22+ and npm
-- `swa` CLI: `npm install -g @azure/static-web-apps-cli`
-- Azure Static Web Apps resource + deployment token
-- Git
+- **Hugo** (extended) ≥ 0.148
+- **PowerShell 7+** (`pwsh`) for the publish script
+- **AWS CLI v2** with credentials in `.env` (S3 bucket + CloudFront distribution ID)
+- **Node.js 20+** for the Playwright test suite (optional)
 
-> **Note on authentication**: HermesTools only reads from GitHub (public repos via HTTPS).
-> No SSH key or GitHub token needed on the build machine for `vox`. Content (`vox-content`)
-> uses a deploy key for push access.
+## Architecture in one paragraph
+
+Episode `.md` files in `vox-content/` are **generated by
+[Toscanini](https://github.com/thluiz/toscanini)** (an Elixir service in
+HermesTools) from JSON sidecars. Hugo mounts that repo as `content/`, applies
+the Hextra theme with project-specific overrides in `layouts/`, and
+`vox-publish-windows.ps1` ships the resulting `public/` to S3 — incrementally
+when possible, fully when necessary — then invalidates CloudFront. See
+`CLAUDE.md` for the full layout, the Hextra quirks catalogue, and the
+incremental-publish whitelist.
 
 ## License
 
-Content is © the author. Infrastructure scripts are MIT.
+Content is © the original podcast authors. Vox's compilation layer
+(annotations, metadata, curation) is released under
+[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
+Infrastructure scripts are MIT.
