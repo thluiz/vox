@@ -52,7 +52,7 @@ lives in a separate repo: [vox-content](https://github.com/thluiz/vox-content)
 
 ```bash
 # 1. Clone
-git clone https://github.com/thluiz/vox.git E:/Vox-Hugo
+git clone https://github.com/thluiz/vox.git E:/vox
 
 # 2. Copy and fill the AWS env file
 cp .env.example .env  # edit with your S3 bucket + CloudFront distribution

@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $HEXTRA_DIR = "E:\hextra"
-$VOX_HUGO   = "E:\Vox-Hugo"
+$VOX_HUGO   = "E:\vox"
 $PATCHES_DIR = "$VOX_HUGO\patches"
 
 # --- Apply patches to Hextra ---
