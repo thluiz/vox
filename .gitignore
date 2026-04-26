@@ -9,13 +9,6 @@ public/
 .hugo_build.lock
 resources/
 node_modules/
-package.json
-package-lock.json
-seed.spec.ts
-transcript.spec.ts
-mobile-nav.spec.ts
-archive-menu.spec.ts
-console-check.spec.ts
-playwright.config.ts
 public-test/
 test-results/
+playwright-report/
