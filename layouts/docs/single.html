@@ -1,0 +1,43 @@
+{{ define "main" }}
+  <div class='hx:mx-auto hx:flex hextra-max-page-width'>
+    {{ partial "sidebar.html" (dict "context" .) }}
+    {{ partial "toc.html" . }}
+    <article class="hx:w-full hx:break-words hx:flex hx:min-h-[calc(100vh-var(--navbar-height))] hx:min-w-0 hx:justify-center hx:pb-4">
+      <main id="content" class="hx:w-full hx:min-w-0 hextra-max-content-width hx:px-4 hx:pt-1 hx:md:px-6">
+        {{ partial "breadcrumb.html" (dict "page" . "enable" true) }}
+
+        {{ if .IsPage }}
+        <div class="vox-meta">
+          {{- with .Params.lang -}}
+            {{- if eq . "pt" -}}<img src="https://flagcdn.com/w20/br.png" width="16" height="12" alt="BR" title="Português" class="vox-flag" />
+            {{- else if eq . "en" -}}<img src="https://flagcdn.com/w20/us.png" width="16" height="12" alt="US" title="English" class="vox-flag" />
+            {{- else -}}<span>{{ upper . }}</span>
+            {{- end -}}
+          {{- end -}}
+          {{- with .Date }}<span>{{ .Format "02 Jan 2006" }}</span>{{ end -}}
+          {{- if .WordCount }}<span class="vox-sep">,</span>
+            <span>Leitura de {{ .ReadingTime }} min</span>{{ end -}}
+        </div>
+        {{ end }}
+
+        {{ with .Params.tags }}
+        <div class="vox-tags">
+          {{- range . -}}
+            <a href="{{ relURL (printf "tags/%s/" (urlize .)) }}">#{{ . }}</a>
+          {{- end -}}
+        </div>
+        {{ end }}
+
+        <div class="content">
+          {{ if .Title }}
+          <h1 class="vox-title">{{ .Title }}</h1>
+          {{ end }}
+          {{ .Content }}
+        </div>
+        {{ if .IsPage }}
+          {{ partial "custom/episode-footer.html" . }}
+        {{ end }}
+      </main>
+    </article>
+  </div>
+{{ end }}
