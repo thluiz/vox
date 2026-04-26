@@ -1,4 +1,4 @@
-# Vox-Hugo — Onboarding para sessões futuras
+# Vox — Onboarding para sessões futuras
 
 Este é o **repo de infraestrutura** do site `vox.thluiz.com` — um digital garden /
 arquivo de transcrições e anotações de podcasts. **O conteúdo (.md + .json)
@@ -10,7 +10,7 @@ vive em outro repo** (`E:/vox-content/`) e é montado via Hugo module mounts.
 
 | Caminho | O que é |
 |---|---|
-| `E:/Vox-Hugo/` (este repo) | Layouts, CSS, JS, scripts, config Hugo |
+| `E:/vox/` (este repo) | Layouts, CSS, JS, scripts, config Hugo |
 | `E:/vox-content/` (repo separado) | Conteúdo: `YYYY/MM/Wnn/<slug>.md` + `<slug>.json` por episódio |
 | `E:/hextra/` | Tema Hextra (NÃO modificar — usado como upstream) |
 | `content-home/` | Páginas próprias do Vox que sobrepõem `content/` (ex: `_index.md` da home, `transcript/`) |

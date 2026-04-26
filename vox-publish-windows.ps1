@@ -7,10 +7,9 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$VOX_HUGO     = "E:\Vox-Hugo"
+$VOX_HUGO     = "E:\vox"
 $HEXTRA_DIR   = "E:\hextra"
 $CONTENT_DIR  = "E:\vox-content"
-$VOX_DIR      = "E:\vox"
 
 # Logging
 $logDir = Join-Path $VOX_HUGO "logs"
@@ -21,7 +20,6 @@ try {
 
 # Carregar .env (AWS credentials)
 $envFile = Join-Path $VOX_HUGO ".env"
-if (-not (Test-Path $envFile)) { $envFile = Join-Path $VOX_DIR ".env" }
 if (Test-Path $envFile) {
     Get-Content $envFile | ForEach-Object {
         if ($_ -match '^\s*([^#][^=]+)=(.*)$') {
