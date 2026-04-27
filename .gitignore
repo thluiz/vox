@@ -12,3 +12,8 @@ node_modules/
 public-test/
 test-results/
 playwright-report/
+__pycache__/
+*.pyc
+ep-temp.json
+scripts/series/*.log
+scripts/series/*.next
