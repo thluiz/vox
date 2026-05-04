@@ -17,6 +17,14 @@
 {{- $podcast := or $meta.podcast .Params.podcast -}}
 {{- $jsonURL := printf "%s.json" (strings.TrimSuffix "/" .RelPermalink) -}}
 
+{{/* Map metadata.source ("pocketcasts", "youtube", ...) to display name.
+     Falls back to humanize on the raw source. Default "PocketCasts" for
+     legacy episodes without a source field. */}}
+{{- $sourceMap := dict "pocketcasts" "PocketCasts" "youtube" "YouTube" -}}
+{{- $sourceKey := $meta.source | default "pocketcasts" -}}
+{{- $sourceName := index $sourceMap $sourceKey -}}
+{{- if not $sourceName }}{{- $sourceName = $sourceKey | humanize -}}{{- end -}}
+
 {{/* Clean multi-line podcast_categories into a slice of trimmed parts */}}
 {{- $categoryParts := slice -}}
 {{- with $meta.podcast_categories -}}
@@ -105,7 +113,7 @@
         <time datetime="{{ . }}">{{ dateFormat "02 Jan 2006" . }}</time>
       </div>
       {{- with $meta.source_url }}
-        <div class="vox-footer-source">PocketCasts — <a href="{{ . }}">{{ . }}</a></div>
+        <div class="vox-footer-source">{{ $sourceName }} — <a href="{{ . }}">{{ . }}</a></div>
       {{- end }}
     </div>
   {{- end }}
