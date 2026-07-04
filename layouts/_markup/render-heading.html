@@ -1,4 +1,7 @@
-{{- if and (eq .Level 1) (eq (plainify .Text) .Page.Title) -}}
+{{- /* Normalize both sides through the typographer (markdownify) so smart
+       quotes, apostrophes, dashes and ellipses match the raw frontmatter title */ -}}
+{{- $titleNorm := .Page.Title | markdownify | plainify -}}
+{{- if and (eq .Level 1) (eq (plainify .Text) $titleNorm) -}}
   {{- /* Skip H1 that duplicates the page title from frontmatter */ -}}
 {{- else -}}
 <h{{ .Level }} {{- with .Attributes.class }} class="{{ . }}" {{- end }}>
