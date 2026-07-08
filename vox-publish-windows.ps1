@@ -40,12 +40,59 @@ if (-not $env:AWS_CF_DISTRIBUTION_ID) {
 $env:AWS_DEFAULT_REGION = if ($env:AWS_REGION) { $env:AWS_REGION } else { "sa-east-1" }
 $aws = 'C:\Program Files\Amazon\AWSCLIV2\aws.exe'
 
+# Pull robusto: resolve untracked-collisions e nunca falha silenciosamente.
+# Causa histórica de "site parado sem ninguém perceber": um .json untracked no
+# working tree colidia com o mesmo path vindo do remoto; `git pull --ff-only`
+# abortava, e como PS não captura exit code de exe nativo via ErrorAction, o
+# script seguia e reportava sucesso falso. Esta função torna o pull à prova disso.
+function Invoke-RobustPull {
+    param([string]$RepoDir, [string]$Label)
+
+    $branch = (git -C $RepoDir rev-parse --abbrev-ref HEAD).Trim()
+    git -C $RepoDir fetch origin --quiet
+    if ($LASTEXITCODE -ne 0) { throw "[vox] git fetch falhou em $Label (exit $LASTEXITCODE)" }
+
+    $remoteRef = "origin/$branch"
+    $local  = (git -C $RepoDir rev-parse HEAD).Trim()
+    $remote = (git -C $RepoDir rev-parse $remoteRef).Trim()
+    if ($local -eq $remote) { Write-Host "[vox]   $Label já atualizado."; return }
+
+    # Resolver arquivos untracked que colidem com o que vem do remoto.
+    # Remove só os byte-idênticos (sem perda); aborta se algum diferir.
+    $untracked = git -C $RepoDir ls-files --others --exclude-standard
+    foreach ($f in $untracked) {
+        if (-not $f) { continue }
+        git -C $RepoDir cat-file -e "${remoteRef}:${f}" 2>$null   # path existe no remoto?
+        if ($LASTEXITCODE -ne 0) { continue }                      # não colide, ignora
+
+        $localBlob  = (git -C $RepoDir hash-object "$f").Trim()
+        $remoteBlob = (git -C $RepoDir rev-parse "${remoteRef}:${f}").Trim()
+        if ($localBlob -eq $remoteBlob) {
+            Write-Host "[vox]   untracked idêntico ao remoto — removendo: $f"
+            Remove-Item (Join-Path $RepoDir $f) -Force
+        } else {
+            throw "[vox] CONFLITO em ${Label}: untracked '$f' difere da versão do remoto. Resolver manualmente antes do próximo publish."
+        }
+    }
+
+    git -C $RepoDir merge --ff-only $remoteRef
+    if ($LASTEXITCODE -ne 0) {
+        throw "[vox] git merge --ff-only falhou em $Label (exit $LASTEXITCODE) — histórico provavelmente divergiu."
+    }
+
+    $now = (git -C $RepoDir rev-parse HEAD).Trim()
+    if ($now -ne $remote) {
+        throw "[vox] $Label não chegou ao remoto após pull (HEAD=$now, esperado=$remote)"
+    }
+    Write-Host "[vox]   ${Label}: $($local.Substring(0,8)) -> $($now.Substring(0,8))"
+}
+
 # Pull
 if (-not $SkipPull) {
     Write-Host "[vox] Atualizando vox-content..."
-    git -C $CONTENT_DIR pull --ff-only
+    Invoke-RobustPull -RepoDir $CONTENT_DIR -Label "vox-content"
     Write-Host "[vox] Atualizando vox-hugo..."
-    git -C $VOX_HUGO pull --ff-only 2>$null
+    git -C $VOX_HUGO pull --ff-only 2>$null   # E:\vox pode ter edits locais; ff best-effort
 }
 
 # Apply patches to Hextra
@@ -345,6 +392,14 @@ if ($toUpload.Count -eq 0 -and $toDelete.Count -eq 0) {
 } catch {
     Write-Error "FATAL: $_"
     Write-Error $_.ScriptStackTrace
+    # Alerta proativo — falha de publish não pode passar despercebida por dias
+    try {
+        $gk = (Get-Content 'C:\Users\conta\.gossipgate\api-key' -Raw).Trim()
+        $fmsg = "🛑 <b>Vox publish FALHOU</b>`n<code>$($_.ToString())</code>"
+        Invoke-RestMethod -Uri 'http://localhost:8080/api/gossip-gate/send' -Method Post `
+            -Headers @{ 'X-Api-Key' = $gk; 'Content-Type' = 'application/json' } `
+            -Body ([System.Text.Encoding]::UTF8.GetBytes((@{ message = $fmsg; parse_mode = 'HTML' } | ConvertTo-Json -Compress))) | Out-Null
+    } catch { Write-Error "[vox] (falha ao notificar GossipGate: $_)" }
     throw
 } finally {
     Stop-Transcript | Out-Null

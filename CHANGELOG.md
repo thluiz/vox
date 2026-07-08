@@ -8,6 +8,44 @@ and an explorer sidebar organised by year/week.
 
 ---
 
+## v3.0.1 — 2026-07-08 — Publish: pull robusto (fim do sucesso falso)
+
+### The bug
+
+O passo de pull do `vox-publish-windows.ps1` usava
+`git -C $CONTENT_DIR pull --ff-only` direto. Quando um arquivo
+**untracked** no `vox-content` colidia com o mesmo path vindo do
+remoto, o `pull` abortava — mas o PowerShell **não captura o exit
+code de um executável nativo** sozinho (só cmdlets disparam
+`$ErrorActionPreference = "Stop"`). O script seguia adiante e
+reportava **"Publicado com sucesso!"** mesmo sem ter atualizado o
+conteúdo: o site ficava parado sem ninguém perceber.
+
+### The fix
+
+Nova função `Invoke-RobustPull` substitui o `pull` direto do
+`vox-content`:
+
+- `git fetch` explícito com checagem de `$LASTEXITCODE`;
+- compara `HEAD` local vs `origin/<branch>` — se iguais, sai cedo;
+- resolve untracked que colidem com o remoto: remove os
+  **byte-idênticos** (sem perda) e **aborta com `throw`** se algum
+  diferir, exigindo resolução manual;
+- `merge --ff-only` com checagem de exit code;
+- confirma que o `HEAD` chegou ao commit remoto esperado — senão,
+  `throw`.
+
+O pull do próprio `E:\vox` (vox-hugo) segue best-effort
+(`--ff-only 2>$null`), porque pode ter edits locais legítimos.
+
+### Alerta proativo
+
+O bloco `catch` do pipeline agora notifica via **GossipGate** quando
+o publish falha (`🛑 Vox publish FALHOU` + mensagem de erro), para
+que uma falha não passe despercebida por dias.
+
+---
+
 ## v3.0.0 — 2026-04-25 — Hugo migration consolidated; vox-hugo merged into main
 
 This release marks the consolidation of the Quartz → Hugo migration as
