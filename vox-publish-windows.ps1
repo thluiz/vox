@@ -2,7 +2,10 @@
 param(
     [switch]$SkipPull,
     [switch]$SkipBuild,
-    [switch]$ForceFullSync
+    [switch]$ForceFullSync,
+    # Usado pelo scheduler horário: sai antes do build se vox-content não avançou
+    # desde o último publish. Execuções manuais (sem esta flag) sempre buildam.
+    [switch]$GateOnNewEpisodes
 )
 
 $ErrorActionPreference = "Stop"
@@ -93,6 +96,21 @@ if (-not $SkipPull) {
     Invoke-RobustPull -RepoDir $CONTENT_DIR -Label "vox-content"
     Write-Host "[vox] Atualizando vox-hugo..."
     git -C $VOX_HUGO pull --ff-only 2>$null   # E:\vox pode ter edits locais; ff best-effort
+}
+
+# Gate do scheduler horário (-GateOnNewEpisodes): só gasta build Hugo + deploy se
+# vox-content avançou desde o último publish (episódios novos vindos do git). Sem
+# episódios novos, sai antes do build. Execuções manuais NÃO passam esta flag, então
+# sempre buildam — útil para republicar mudanças de layout/CSS sem -ForceFullSync.
+if ($GateOnNewEpisodes -and -not $ForceFullSync) {
+    $gateLastFile = "$VOX_HUGO\last-published-commit.txt"
+    $gateCurrent  = (git -C $CONTENT_DIR rev-parse HEAD).Trim()
+    $gateLast     = if (Test-Path $gateLastFile) { (Get-Content $gateLastFile -Raw).Trim() } else { $null }
+    if ($gateLast -and $gateLast -eq $gateCurrent) {
+        Write-Host "[vox] Sem episódios novos em vox-content ($($gateCurrent.Substring(0,8))) — nada a publicar. Saindo."
+        return
+    }
+    Write-Host "[vox] Novos commits em vox-content detectados — prosseguindo com publish."
 }
 
 # Apply patches to Hextra
