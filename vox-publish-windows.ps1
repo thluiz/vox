@@ -144,7 +144,10 @@ if ($SkipBuild) {
 } else {
     Write-Host "[vox] Build Hugo..."
     Set-Location $VOX_HUGO
-    hugo --logLevel warn
+    # --cleanDestinationDir: sem ele o Hugo nunca apaga do public/ o que deixou
+    # de gerar (tags renomeadas, CSS/JS com hash antigo) e o detector de
+    # deleções abaixo nunca as vê — ficavam no S3 para sempre.
+    hugo --logLevel warn --cleanDestinationDir
     if ($LASTEXITCODE -ne 0) {
         throw "[vox] Build falhou (exit $LASTEXITCODE) — abortando deploy"
     }
@@ -388,18 +391,65 @@ if ($toUpload.Count -eq 0 -and $toDelete.Count -eq 0) {
             --delete
         if ($LASTEXITCODE -ne 0) { throw "[vox] Falha no s3 sync" }
     } else {
-        Write-Host "[vox] Upload de $($toUpload.Count) arquivo(s) (paralelo)..."
-        $awsExe = $aws
-        $uploadErrors = $toUpload | ForEach-Object -Parallel {
-            $s3Key = $_.Replace('\', '/')
-            $result = & $using:awsExe s3 cp (Join-Path $using:publicDir $_) "$using:bucket/$s3Key" `
-                --cache-control $using:cacheCtrl --only-show-errors 2>&1
-            if ($LASTEXITCODE -ne 0) { "FAIL: $s3Key — $result" }
-        } -ThrottleLimit 24 | Where-Object { $_ }
-        if ($uploadErrors) { throw "[vox] Falhas no upload:`n$($uploadErrors -join "`n")" }
+        # Um processo 'aws' por arquivo custava ~0.25s de startup cada (4980
+        # arquivos = ~20 min). Em vez disso: espelha só os alterados numa pasta
+        # de staging (hard links, mesmo volume — sem copiar dados) e sobe tudo
+        # num único 's3 cp --recursive' com concorrência alta.
+        if ($toUpload.Count -gt 0) {
+            Write-Host "[vox] Upload de $($toUpload.Count) arquivo(s)..."
+            $staging = Join-Path $VOX_HUGO ".upload-staging"
+            if (Test-Path $staging) { Remove-Item $staging -Recurse -Force }
+            if (-not ('Vox.Native' -as [type])) {
+                Add-Type -Namespace Vox -Name Native -MemberDefinition @'
+[DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+public static extern bool CreateHardLink(string lpFileName, string lpExistingFileName, IntPtr lpSecurityAttributes);
+'@
+            }
+            foreach ($rel in $toUpload) {
+                $src = Join-Path $publicDir $rel
+                $dst = Join-Path $staging $rel
+                [void][System.IO.Directory]::CreateDirectory([System.IO.Path]::GetDirectoryName($dst))
+                if (-not [Vox.Native]::CreateHardLink($dst, $src, [IntPtr]::Zero)) {
+                    Copy-Item -LiteralPath $src -Destination $dst
+                }
+            }
 
-        foreach ($rel in $toDelete) {
-            & $aws s3 rm "$bucket/$($rel.Replace('\','/'))" | Out-Null
+            # Concorrência do CLI via config temporário (credenciais vêm do .env)
+            $prevCfg = $env:AWS_CONFIG_FILE
+            $awsCfg  = Join-Path $env:TEMP "vox-publish-aws-config"
+            "[default]`ns3 =`n    max_concurrent_requests = 64`n    max_queue_size = 10000`n" |
+                Set-Content $awsCfg -Encoding ascii
+            $env:AWS_CONFIG_FILE = $awsCfg
+            $env:PYTHONUTF8 = '1'   # paths com acento (tags/ética) no output do CLI
+            try {
+                & $aws s3 cp $staging $bucket --recursive `
+                    --cache-control $cacheCtrl --only-show-errors
+                $cpExit = $LASTEXITCODE
+            } finally {
+                $env:AWS_CONFIG_FILE = $prevCfg
+                Remove-Item $staging -Recurse -Force -ErrorAction SilentlyContinue
+            }
+            if ($cpExit -ne 0) { throw "[vox] Falha no upload (aws s3 cp exit $cpExit)" }
+        }
+
+        # Deleções em lote (delete-objects aceita até 1000 chaves por chamada)
+        if ($toDelete.Count -gt 0) {
+            Write-Host "[vox] Removendo $($toDelete.Count) arquivo(s) do S3..."
+            $bucketName = $bucket -replace '^s3://', ''
+            $batchFile  = Join-Path $env:TEMP "vox-publish-delete.json"
+            for ($i = 0; $i -lt $toDelete.Count; $i += 1000) {
+                $chunk = $toDelete[$i..([Math]::Min($i + 999, $toDelete.Count - 1))]
+                $payload = @{
+                    Objects = @($chunk | ForEach-Object { @{ Key = $_.Replace('\', '/') } })
+                    Quiet   = $true
+                } | ConvertTo-Json -Depth 4 -Compress
+                [System.IO.File]::WriteAllText($batchFile, $payload, [System.Text.UTF8Encoding]::new($false))
+                $resp = & $aws s3api delete-objects --bucket $bucketName --delete "file://$batchFile" --output json
+                if ($LASTEXITCODE -ne 0) { throw "[vox] Falha no delete-objects (exit $LASTEXITCODE)" }
+                $errs = ($resp | Out-String | ConvertFrom-Json -ErrorAction SilentlyContinue).Errors
+                if ($errs) { throw "[vox] delete-objects com erros:`n$(($errs | ForEach-Object { "$($_.Key): $($_.Message)" }) -join "`n")" }
+            }
+            Remove-Item $batchFile -Force -ErrorAction SilentlyContinue
         }
     }
 

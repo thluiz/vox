@@ -47,8 +47,12 @@ pwsh -NoProfile -File vox-publish-windows.ps1 -S3Sync         # s3 sync --delete
 ```
 
 O upload é **sempre por diferença**: SHA256 de cada arquivo do `public/`
-comparado com `public-manifest.json`, e só o que mudou sobe via `aws s3 cp`
-(paralelo). Nunca `s3 sync` por padrão — ele compara mtime, e o Hugo reescreve
+comparado com `public-manifest.json`, e só o que mudou sobe — espelhado numa
+pasta `.upload-staging/` (hard links) e enviado num único `aws s3 cp --recursive`
+com concorrência 64. Deleções saem em lote via `s3api delete-objects`. O build
+usa `--cleanDestinationDir`, então páginas que deixaram de existir (tag
+renomeada, CSS antigo) somem do `public/` e são removidas do S3 no próximo
+publish que hashear tudo (`-ForceFullSync` ou mudança de apresentação). Nunca `s3 sync` por padrão — ele compara mtime, e o Hugo reescreve
 o mtime de todo o `public/` a cada build, então reenviava ~4.5 GiB por publish.
 
 **Modo incremental** (padrão) hasheia:
