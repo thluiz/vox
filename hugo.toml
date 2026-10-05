@@ -30,7 +30,7 @@ enableRobotsTXT = false
   [[module.mounts]]
     source = 'E:/vox-content'
     target = "content"
-    files = ["! index.md"]
+    files = ["! index.md", "! _meta/**"]
   [[module.mounts]]
     source = "assets"
     target = "assets"
