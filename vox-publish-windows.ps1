@@ -3,12 +3,17 @@ param(
     [switch]$SkipPull,
     [switch]$SkipBuild,
     [switch]$ForceFullSync,
+    # Escape hatch para drift entre S3 e manifest (ex: mexeram no bucket à mão):
+    # usa 'aws s3 sync --delete', que reenvia o site inteiro (Hugo reescreve o
+    # mtime de todo o public/). Implica -ForceFullSync.
+    [switch]$S3Sync,
     # Usado pelo scheduler horário: sai antes do build se vox-content não avançou
     # desde o último publish. Execuções manuais (sem esta flag) sempre buildam.
     [switch]$GateOnNewEpisodes
 )
 
 $ErrorActionPreference = "Stop"
+if ($S3Sync) { $ForceFullSync = $true }
 
 $VOX_HUGO     = "E:\vox"
 $HEXTRA_DIR   = "E:\hextra"
@@ -240,11 +245,44 @@ function Get-HtmlPathsToCheck($contentDir, $publicDir, $lastCommit, $currentComm
     return $paths
 }
 
+# Fingerprint da apresentação: tudo que, ao mudar, reescreve o HTML de todas as
+# páginas sem aparecer no git diff do vox-content — layouts, CSS, config, tema,
+# versão do Hugo. Inclui edições não commitadas (o build usa o working tree).
+function Get-PresentationFingerprint {
+    $items = [System.Collections.Generic.List[string]]::new()
+    $files = @(Get-Item "$VOX_HUGO\hugo.toml")
+    foreach ($d in @('layouts', 'assets', 'static', 'content-home', 'patches')) {
+        $full = Join-Path $VOX_HUGO $d
+        if (Test-Path $full) { $files += Get-ChildItem $full -Recurse -File }
+    }
+    foreach ($f in ($files | Sort-Object FullName)) {
+        $items.Add("$($f.FullName.Substring($VOX_HUGO.Length + 1))=$((Get-FileHash $f.FullName -Algorithm SHA256).Hash)")
+    }
+    $items.Add("hextra=$((git -C $HEXTRA_DIR rev-parse HEAD).Trim())")
+    $items.Add("hugo=$((hugo version) -replace ' BuildDate=.*$', '')")
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes(($items -join "`n"))
+    return [System.BitConverter]::ToString(
+        [System.Security.Cryptography.SHA256]::Create().ComputeHash($bytes)).Replace('-', '')
+}
+
+$presentationFile = "$VOX_HUGO\last-published-presentation.txt"
+$presentationNow  = Get-PresentationFingerprint
+$presentationLast = if (Test-Path $presentationFile) { (Get-Content $presentationFile -Raw).Trim() } else { $null }
+
 $pathsToCheck = Get-HtmlPathsToCheck $CONTENT_DIR $publicDir $lastCommit $currentCommit
 $isFullScan   = $ForceFullSync -or (-not $lastCommit)
 
+# Mudança de apresentação reescreve todas as páginas, e o diff de conteúdo não
+# dá por isso. Hashear tudo é local e paralelo (segundos); o upload continua a
+# ser só do que diferir do manifest.
+$presentationChanged = -not $isFullScan -and ($presentationNow -ne $presentationLast)
+$hashedEverything    = $isFullScan -or $presentationChanged
+
 if ($isFullScan) {
     Write-Host "[vox] $(if ($ForceFullSync) { 'ForceFullSync' } else { 'Primeiro publish' }) — scan completo..."
+    $filesToHash = Get-ChildItem $publicDir -Recurse -File | Where-Object { $_.Name -ne '.DS_Store' }
+} elseif ($presentationChanged) {
+    Write-Host "[vox] Apresentação mudou (layouts/assets/config/tema/Hugo) — hash de tudo, upload só do que diferir..."
     $filesToHash = Get-ChildItem $publicDir -Recurse -File | Where-Object { $_.Name -ne '.DS_Store' }
 } elseif ($lastCommit -eq $currentCommit) {
     Write-Host "[vox] Sem novos commits em vox-content — nada a publicar."
@@ -282,7 +320,7 @@ foreach ($r in $results) {
 # Estratégia: hashear uma whitelist de diretórios de assets e ficheiros
 # raíz estáticos e fazer a mesma comparação contra o manifest. São
 # sempre diminutos (<300KB total), custo trivial.
-if (-not $isFullScan) {
+if (-not $hashedEverything) {
     $assetDirs = @('css', 'js', 'images', 'scripts', 'transcript')
     $assetRootFiles = @(
         'robots.txt', '404.html', 'index.html', 'index.xml', 'sitemap.xml', 'site.webmanifest',
@@ -322,9 +360,10 @@ if (-not $isFullScan) {
     }
 }
 
-# Detetar deleções: só em full scan
+# Detetar deleções: só quando se hasheou o public/ inteiro, senão um arquivo
+# que o diff não trouxe parece apagado e sai do ar por engano.
 $toDelete = [System.Collections.Generic.List[string]]::new()
-if ($isFullScan) {
+if ($hashedEverything) {
     foreach ($key in $prevManifest.Keys) {
         if (-not (Test-Path (Join-Path $publicDir $key))) {
             $toDelete.Add($key)
@@ -338,20 +377,25 @@ Write-Host "[vox] Upload: $($toUpload.Count) | Delete: $($toDelete.Count)"
 if ($toUpload.Count -eq 0 -and $toDelete.Count -eq 0) {
     Write-Host "[vox] Sem alterações — skip S3"
 } else {
-    if ($isFullScan) {
-        Write-Host "[vox] Full sync via s3 sync..."
+    # Subir sempre por 's3 cp' do que diferiu no manifest SHA256, nunca 's3 sync':
+    # o sync compara tamanho+mtime e o Hugo reescreve o mtime de TODO o public/
+    # a cada build — o sync reenviava ~4.5 GiB mesmo com meia dúzia de páginas
+    # alteradas. 's3 sync' só via -S3Sync (drift entre S3 e manifest).
+    if ($S3Sync) {
+        Write-Host "[vox] -S3Sync — s3 sync --delete do public/ inteiro..."
         & $aws s3 sync $publicDir $bucket `
             --cache-control $cacheCtrl `
             --delete
         if ($LASTEXITCODE -ne 0) { throw "[vox] Falha no s3 sync" }
     } else {
+        Write-Host "[vox] Upload de $($toUpload.Count) arquivo(s) (paralelo)..."
         $awsExe = $aws
         $uploadErrors = $toUpload | ForEach-Object -Parallel {
             $s3Key = $_.Replace('\', '/')
             $result = & $using:awsExe s3 cp (Join-Path $using:publicDir $_) "$using:bucket/$s3Key" `
-                --cache-control $using:cacheCtrl 2>&1
+                --cache-control $using:cacheCtrl --only-show-errors 2>&1
             if ($LASTEXITCODE -ne 0) { "FAIL: $s3Key — $result" }
-        } -ThrottleLimit 16
+        } -ThrottleLimit 24 | Where-Object { $_ }
         if ($uploadErrors) { throw "[vox] Falhas no upload:`n$($uploadErrors -join "`n")" }
 
         foreach ($rel in $toDelete) {
@@ -368,6 +412,7 @@ if ($toUpload.Count -eq 0 -and $toDelete.Count -eq 0) {
 # Gravar manifest e commit atual
 $newManifest | ConvertTo-Json -Compress | Set-Content $manifestFile -Encoding UTF8
 $currentCommit | Set-Content $lastCommitFile -Encoding UTF8
+$presentationNow | Set-Content $presentationFile -Encoding UTF8
 
 # Push vox-content (se houver alterações)
 $contentStatus = git -C $CONTENT_DIR status --porcelain 2>$null

@@ -17,3 +17,4 @@ __pycache__/
 ep-temp.json
 scripts/series/*.log
 scripts/series/*.next
+last-published-presentation.txt

@@ -42,22 +42,34 @@ hugo server -p 1313 --disableFastRender
 
 ```bash
 pwsh -NoProfile -File vox-publish-windows.ps1                 # incremental (default)
-pwsh -NoProfile -File vox-publish-windows.ps1 -ForceFullSync  # full
+pwsh -NoProfile -File vox-publish-windows.ps1 -ForceFullSync  # hash de todo o public/
+pwsh -NoProfile -File vox-publish-windows.ps1 -S3Sync         # s3 sync --delete (drift)
 ```
 
-**Quando usar `-ForceFullSync`:**
-- Mudou `hugo.toml`, `layouts/`, ou `assets/css/custom.css` (afeta todos os HTMLs gerados)
-- `last-published-commit.txt` está obsoleto
-- Suspeita de drift entre `public/` e S3
+O upload é **sempre por diferença**: SHA256 de cada arquivo do `public/`
+comparado com `public-manifest.json`, e só o que mudou sobe via `aws s3 cp`
+(paralelo). Nunca `s3 sync` por padrão — ele compara mtime, e o Hugo reescreve
+o mtime de todo o `public/` a cada build, então reenviava ~4.5 GiB por publish.
 
-**Modo incremental** (padrão) só verifica:
+**Modo incremental** (padrão) hasheia:
 1. Arquivos derivados de mudanças em `vox-content` (via git diff)
-2. Whitelist de assets estáticos: `css`, `js`, `images`, `scripts`, `transcript` + alguns root files (`index.html`, `sitemap.xml`, favicons…) — definida em `vox-publish-windows.ps1` (v2.0.4)
+2. Whitelist de assets estáticos: `css`, `js`, `images`, `scripts`, `transcript` + alguns root files (`index.html`, `sitemap.xml`, favicons…)
 
-**Quirk conhecido:** `aws s3 sync` pode retornar **exit 1 com Unicode em paths**
-(ex: `tags/ética/`). Os arquivos sobem mesmo assim, mas o script aborta antes
-do CloudFront invalidation. Se isso ocorrer numa full sync: rerun ou rodar
-invalidation manual. (Bug não fixado ainda — reproduce: file path com `é`.)
+**Mudança de apresentação é detectada sozinha:** o script guarda um fingerprint
+de `hugo.toml`, `layouts/`, `assets/`, `static/`, `content-home/`, `patches/`,
+commit do Hextra e versão do Hugo (`last-published-presentation.txt`). Se mudou,
+hasheia o `public/` inteiro e sobe só o que diferir — não precisa lembrar do
+`-ForceFullSync` depois de mexer em layout/CSS/config.
+
+**Quando usar `-ForceFullSync`:** `last-published-commit.txt` obsoleto, ou
+suspeita de que o diff de conteúdo não pegou alguma página (ex: página de tag).
+Continua sendo upload por diferença, só que hasheando tudo.
+
+**Quando usar `-S3Sync`:** o S3 divergiu do manifest (alguém mexeu no bucket à
+mão, upload interrompido antes de gravar o manifest). Reenvia o site inteiro.
+Quirk: `aws s3 sync` pode retornar **exit 1 com Unicode em paths**
+(ex: `tags/ética/`) — os arquivos sobem, mas o script aborta antes do
+CloudFront invalidation; rerun ou invalidation manual.
 
 ---
 
