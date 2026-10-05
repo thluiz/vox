@@ -99,6 +99,7 @@ def main():
     ap.add_argument("--min-podcasts", type=int, default=0,
                     help="lista pessoas presentes em >= N podcasts distintos")
     ap.add_argument("--csv", help="exporta todos os grupos para CSV")
+    ap.add_argument("--aliases", help="gera CSV variante->canônico para revisão manual")
     args = ap.parse_args()
 
     by_key, podcasts, episodes = load()
@@ -118,6 +119,18 @@ def main():
             "podcasts": sorted(pods),
             "fuzzy": any(k in fuzzy for k in g),
         })
+
+    if args.aliases:
+        n = 0
+        with open(args.aliases, "w", newline="", encoding="utf-8") as fh:
+            w = csv.writer(fh)
+            w.writerow(["variant", "canonical", "group_episodes", "fuzzy"])
+            for r in sorted(rows, key=lambda r: -r["episodes"]):
+                for v in r["variants"][1:]:
+                    w.writerow([v, r["canonical"], r["episodes"], "~" if r["fuzzy"] else ""])
+                    n += 1
+        print(f"Aliases: {args.aliases} ({n} variantes)")
+        return
 
     if args.csv:
         with open(args.csv, "w", newline="", encoding="utf-8") as fh:
