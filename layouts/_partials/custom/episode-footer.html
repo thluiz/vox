@@ -52,7 +52,7 @@
         <br><span class="vox-footer-muted">
           {{- range $i, $c := $categoryParts -}}
             {{- if $i }} › {{ end -}}
-            <a href="{{ printf "/tags/%s/" (urlize $c) | relURL }}">{{ $c }}</a>
+            <a href="{{ printf "/tags/%s/" (urlize (lower $c)) | relURL }}">{{ $c }}</a>
           {{- end -}}
           {{- with $meta.podcast_type }} · {{ . }}{{ end -}}
         </span>
@@ -77,7 +77,7 @@
         {{ if $isEN }}Participants{{ else }}Participantes{{ end }}:
         {{- range $i, $p := . }}
           {{- if $i }},{{ end }}
-          <a href="{{ printf "/tags/%s/" (urlize $p) | relURL }}">{{ $p }}</a>
+          <a href="{{ printf "/tags/%s/" (urlize (lower $p)) | relURL }}">{{ $p }}</a>
         {{- end }}
       </div>
       <em class="vox-footer-muted vox-footer-participants-note">
