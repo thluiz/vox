@@ -6,6 +6,6 @@ excludeSearch: true
 sidebar:
   exclude: true
   hide: true
-_build:
+build:
   list: never
 ---

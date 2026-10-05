@@ -1,6 +1,6 @@
 baseURL = "https://vox.thluiz.com"
 title = "Vox"
-languageCode = "pt-BR"
+locale = "pt-BR"
 theme = "hextra"
 themesDir = 'E:\'
 
@@ -30,7 +30,7 @@ enableRobotsTXT = false
   [[module.mounts]]
     source = 'E:/vox-content'
     target = "content"
-    excludeFiles = "index.md"
+    files = ["! index.md"]
   [[module.mounts]]
     source = "assets"
     target = "assets"
