@@ -41,34 +41,33 @@ hugo server -p 1313 --disableFastRender
 ## Build e publish
 
 ```bash
-pwsh -NoProfile -File vox-publish-windows.ps1                 # incremental (default)
-pwsh -NoProfile -File vox-publish-windows.ps1 -ForceFullSync  # hash de todo o public/
-pwsh -NoProfile -File vox-publish-windows.ps1 -S3Sync         # s3 sync --delete (drift)
+pwsh -NoProfile -File vox-publish-windows.ps1                       # manual: sempre builda
+pwsh -NoProfile -File vox-publish-windows.ps1 -GateOnNewEpisodes    # scheduler horário
+pwsh -NoProfile -File vox-publish-windows.ps1 -S3Sync               # s3 sync --delete (drift)
 ```
 
-O upload é **sempre por diferença**: SHA256 de cada arquivo do `public/`
-comparado com `public-manifest.json`, e só o que mudou sobe — espelhado numa
-pasta `.upload-staging/` (hard links) e enviado num único `aws s3 cp --recursive`
-com concorrência 64. Deleções saem em lote via `s3api delete-objects`. O build
-usa `--cleanDestinationDir`, então páginas que deixaram de existir (tag
-renomeada, CSS antigo) somem do `public/` e são removidas do S3 no próximo
-publish que hashear tudo (`-ForceFullSync` ou mudança de apresentação). Nunca `s3 sync` por padrão — ele compara mtime, e o Hugo reescreve
-o mtime de todo o `public/` a cada build, então reenviava ~4.5 GiB por publish.
+O upload é **sempre por diferença**: todo publish calcula o SHA256 de cada
+arquivo do `public/` (local, paralelo, ~1-2 min para ~58k arquivos), compara
+com `public-manifest.json` e sobe só o que mudou — espelhado numa pasta
+`.upload-staging/` (hard links) e enviado num único `aws s3 cp --recursive` com
+concorrência 64. Deleções (estava no manifest, sumiu do `public/`) saem em lote
+via `s3api delete-objects`; o build usa `--cleanDestinationDir`, então tag
+renomeada ou CSS antigo somem do S3 no publish seguinte.
 
-**Modo incremental** (padrão) hasheia:
-1. Arquivos derivados de mudanças em `vox-content` (via git diff)
-2. Whitelist de assets estáticos: `css`, `js`, `images`, `scripts`, `transcript` + alguns root files (`index.html`, `sitemap.xml`, favicons…)
+Não há modo incremental: derivar as páginas afetadas do git diff deixava para
+trás paginação, listagens e páginas vizinhas (~5k arquivos por dia ficavam
+desatualizados no S3). Nunca `s3 sync` por padrão — ele compara mtime, e o Hugo
+reescreve o mtime de todo o `public/` a cada build (reenviava ~4.5 GiB).
 
-**Mudança de apresentação é detectada sozinha:** o script guarda um fingerprint
-de `hugo.toml`, `layouts/`, `assets/`, `static/`, `content-home/`, `patches/`,
-commit do Hextra e versão do Hugo (`last-published-presentation.txt`). Se mudou,
-hasheia o `public/` inteiro e sobe só o que diferir — não precisa lembrar do
-`-ForceFullSync` depois de mexer em layout/CSS/config.
+**Gate do scheduler (`-GateOnNewEpisodes`):** pula a rodada se o `vox-content`
+não avançou **e** a apresentação não mudou. A apresentação é um fingerprint de
+`hugo.toml`, `layouts/`, `assets/`, `static/`, `content-home/`, `patches/`,
+commit do Hextra e versão do Hugo (`last-published-presentation.txt`) — mexer em
+layout/CSS/config publica sozinho na hora seguinte. `-ForceFullSync` só ignora
+o gate.
 
-**Quando usar `-ForceFullSync`:** `last-published-commit.txt` obsoleto, ou
-suspeita de que o diff de conteúdo não pegou alguma página (ex: página de tag).
-Continua sendo upload por diferença, só que hasheando tudo.
-
+**Notificação:** lista os episódios novos pelo git diff do `vox-content`
+(`.md` adicionados), não pelo upload.
 **Quando usar `-S3Sync`:** o S3 divergiu do manifest (alguém mexeu no bucket à
 mão, upload interrompido antes de gravar o manifest). Reenvia o site inteiro.
 Quirk: `aws s3 sync` pode retornar **exit 1 com Unicode em paths**

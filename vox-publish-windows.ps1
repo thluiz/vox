@@ -1,14 +1,16 @@
-# vox-publish-windows.ps1 — Hugo build + incremental S3 deploy
+# vox-publish-windows.ps1 — Hugo build + deploy S3 por diferença (manifest SHA256)
 param(
     [switch]$SkipPull,
     [switch]$SkipBuild,
+    # Ignora o gate do -GateOnNewEpisodes. Todo publish já hasheia o public/
+    # inteiro e sobe só o que diferir; não existe mais modo incremental.
     [switch]$ForceFullSync,
     # Escape hatch para drift entre S3 e manifest (ex: mexeram no bucket à mão):
     # usa 'aws s3 sync --delete', que reenvia o site inteiro (Hugo reescreve o
     # mtime de todo o public/). Implica -ForceFullSync.
     [switch]$S3Sync,
-    # Usado pelo scheduler horário: sai antes do build se vox-content não avançou
-    # desde o último publish. Execuções manuais (sem esta flag) sempre buildam.
+    # Usado pelo scheduler horário: sai antes do build se nem vox-content nem a
+    # apresentação mudaram desde o último publish. Manuais (sem a flag) sempre buildam.
     [switch]$GateOnNewEpisodes
 )
 
@@ -103,19 +105,43 @@ if (-not $SkipPull) {
     git -C $VOX_HUGO pull --ff-only 2>$null   # E:\vox pode ter edits locais; ff best-effort
 }
 
+# Fingerprint da apresentação: tudo que, ao mudar, reescreve o HTML de todas as
+# páginas sem aparecer no git diff do vox-content — layouts, CSS, config, tema,
+# versão do Hugo. Inclui edições não commitadas (o build usa o working tree).
+function Get-PresentationFingerprint {
+    $items = [System.Collections.Generic.List[string]]::new()
+    $files = @(Get-Item "$VOX_HUGO\hugo.toml")
+    foreach ($d in @('layouts', 'assets', 'static', 'content-home', 'patches')) {
+        $full = Join-Path $VOX_HUGO $d
+        if (Test-Path $full) { $files += Get-ChildItem $full -Recurse -File }
+    }
+    foreach ($f in ($files | Sort-Object FullName)) {
+        $items.Add("$($f.FullName.Substring($VOX_HUGO.Length + 1))=$((Get-FileHash $f.FullName -Algorithm SHA256).Hash)")
+    }
+    $items.Add("hextra=$((git -C $HEXTRA_DIR rev-parse HEAD).Trim())")
+    $items.Add("hugo=$((hugo version) -replace ' BuildDate=.*$', '')")
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes(($items -join "`n"))
+    return [System.BitConverter]::ToString(
+        [System.Security.Cryptography.SHA256]::Create().ComputeHash($bytes)).Replace('-', '')
+}
+
+$presentationFile = "$VOX_HUGO\last-published-presentation.txt"
+$presentationNow  = Get-PresentationFingerprint
+$presentationLast = if (Test-Path $presentationFile) { (Get-Content $presentationFile -Raw).Trim() } else { $null }
+
 # Gate do scheduler horário (-GateOnNewEpisodes): só gasta build Hugo + deploy se
-# vox-content avançou desde o último publish (episódios novos vindos do git). Sem
-# episódios novos, sai antes do build. Execuções manuais NÃO passam esta flag, então
-# sempre buildam — útil para republicar mudanças de layout/CSS sem -ForceFullSync.
+# vox-content avançou desde o último publish OU a apresentação mudou (layout,
+# CSS, config, tema, versão do Hugo). Execuções manuais NÃO passam esta flag,
+# então sempre buildam.
 if ($GateOnNewEpisodes -and -not $ForceFullSync) {
     $gateLastFile = "$VOX_HUGO\last-published-commit.txt"
     $gateCurrent  = (git -C $CONTENT_DIR rev-parse HEAD).Trim()
     $gateLast     = if (Test-Path $gateLastFile) { (Get-Content $gateLastFile -Raw).Trim() } else { $null }
-    if ($gateLast -and $gateLast -eq $gateCurrent) {
-        Write-Host "[vox] Sem episódios novos em vox-content ($($gateCurrent.Substring(0,8))) — nada a publicar. Saindo."
+    if ($gateLast -and $gateLast -eq $gateCurrent -and $presentationNow -eq $presentationLast) {
+        Write-Host "[vox] Sem episódios novos em vox-content ($($gateCurrent.Substring(0,8))) nem mudança de apresentação — nada a publicar. Saindo."
         return
     }
-    Write-Host "[vox] Novos commits em vox-content detectados — prosseguindo com publish."
+    Write-Host "[vox] Mudanças detectadas (conteúdo e/ou apresentação) — prosseguindo com publish."
 }
 
 # Apply patches to Hextra
@@ -161,7 +187,13 @@ if ($SkipBuild) {
     }
 }
 
-# Deploy S3 + CloudFront — diff baseado em git + manifest
+# Deploy S3 + CloudFront — diff por manifest SHA256 do public/ inteiro
+#
+# Sempre hasheia o public/ todo (local, paralelo, ~1-2 min para ~58k arquivos).
+# Derivar as páginas afetadas a partir do git diff (versão anterior) deixava
+# para trás tudo que muda indiretamente quando entra um episódio — paginação,
+# listagens, páginas vizinhas — e esses ~5k arquivos só subiam no próximo
+# -ForceFullSync. Também é o único jeito seguro de detectar deleções.
 $publicDir      = "$VOX_HUGO\public"
 $manifestFile   = "$VOX_HUGO\public-manifest.json"
 $lastCommitFile = "$VOX_HUGO\last-published-commit.txt"
@@ -174,205 +206,28 @@ if (Test-Path $manifestFile) {
 }
 
 $currentCommit = (git -C $CONTENT_DIR rev-parse HEAD).Trim()
-$lastCommit    = if (Test-Path $lastCommitFile) { (Get-Content $lastCommitFile -Raw).Trim() } else { $null }
+$prevCommit    = if (Test-Path $lastCommitFile) { (Get-Content $lastCommitFile -Raw).Trim() } else { $null }
 
-# Derivar conjunto de arquivos a verificar a partir do git diff
-# Hugo gera slug/index.html (não slug.html) e slug/og.png (não slug-og-image.png)
-function Get-HtmlPathsToCheck($contentDir, $publicDir, $lastCommit, $currentCommit) {
-    $paths = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
-
-    # Sempre verificar: home, 404, sitemap, robots, search data
-    @('index.html', '404.html', 'sitemap.xml', 'robots.txt') | ForEach-Object {
-        if (Test-Path (Join-Path $publicDir $_)) { $paths.Add($_) | Out-Null }
-    }
-
-    if (-not $lastCommit -or $lastCommit -eq $currentCommit) { return $paths }
-
-    # Arquivos de conteúdo alterados desde o último publish
-    $changed = git -C $contentDir diff --name-only $lastCommit $currentCommit 2>$null |
-               Where-Object { $_ -match '\.(md|json)$' }
-
-    foreach ($f in $changed) {
-        $noExt   = [System.IO.Path]::GetFileNameWithoutExtension($f)
-        $dir     = [System.IO.Path]::GetDirectoryName($f) -replace '/', '\'
-
-        # Hugo: slug/index.html (directory-based URLs)
-        $htmlRel = if ($dir) { "$dir\$noExt\index.html" } else { "$noExt\index.html" }
-        $paths.Add($htmlRel) | Out-Null
-
-        # OG image: slug/og.webp
-        $ogRel = if ($dir) { "$dir\$noExt\og.webp" } else { "$noExt\og.webp" }
-        if (Test-Path (Join-Path $publicDir $ogRel)) { $paths.Add($ogRel) | Out-Null }
-
-        # JSON data file (Hugo copies as resource)
-        $jsonRel = if ($dir) { "$dir\$noExt.json" } else { "$noExt.json" }
-        if (Test-Path (Join-Path $publicDir $jsonRel)) { $paths.Add($jsonRel) | Out-Null }
-
-        # Folder indexes de cada nível pai: ano, mês, semana
-        $parts = ($dir -split '\\') | Where-Object { $_ }
-        for ($i = 1; $i -le $parts.Length; $i++) {
-            $paths.Add(($parts[0..($i-1)] -join '\') + '\index.html') | Out-Null
-        }
-
-        # Tags do episódio
-        $jsonFile = Join-Path $contentDir ($dir + '\' + $noExt + '.json')
-        $mdFile   = Join-Path $contentDir $f
-        $tags = @()
-        if (Test-Path $jsonFile) {
-            try {
-                $jdata = Get-Content $jsonFile -Raw | ConvertFrom-Json
-                if ($jdata.frontmatter.tags) { $tags = @($jdata.frontmatter.tags) }
-                elseif ($jdata.tags)         { $tags = @($jdata.tags) }
-            } catch {}
-        } elseif (Test-Path $mdFile) {
-            $inFront = $false; $inTags = $false
-            foreach ($line in (Get-Content $mdFile)) {
-                if ($line -eq '---') { if (-not $inFront) { $inFront = $true } else { break } ; continue }
-                if (-not $inFront) { continue }
-                if ($line -match '^tags\s*:\s*\[(.+)\]') {
-                    $tags = $Matches[1] -split ',' | ForEach-Object { $_.Trim().Trim('"').Trim("'") }
-                    $inTags = $false; break
-                }
-                if ($line -match '^tags\s*:') { $inTags = $true; continue }
-                if ($inTags -and $line -match '^\s*-\s*(.+)') { $tags += $Matches[1].Trim() }
-                elseif ($inTags) { $inTags = $false }
-            }
-        }
-        foreach ($tag in $tags) {
-            $slug = $tag.ToLower() -replace '\s+', '-'
-            # Hugo: tags/slug/index.html (directory-based)
-            $tagHtml = "tags\$slug\index.html"
-            if (Test-Path (Join-Path $publicDir $tagHtml)) { $paths.Add($tagHtml) | Out-Null }
-        }
-    }
-    return $paths
-}
-
-# Fingerprint da apresentação: tudo que, ao mudar, reescreve o HTML de todas as
-# páginas sem aparecer no git diff do vox-content — layouts, CSS, config, tema,
-# versão do Hugo. Inclui edições não commitadas (o build usa o working tree).
-function Get-PresentationFingerprint {
-    $items = [System.Collections.Generic.List[string]]::new()
-    $files = @(Get-Item "$VOX_HUGO\hugo.toml")
-    foreach ($d in @('layouts', 'assets', 'static', 'content-home', 'patches')) {
-        $full = Join-Path $VOX_HUGO $d
-        if (Test-Path $full) { $files += Get-ChildItem $full -Recurse -File }
-    }
-    foreach ($f in ($files | Sort-Object FullName)) {
-        $items.Add("$($f.FullName.Substring($VOX_HUGO.Length + 1))=$((Get-FileHash $f.FullName -Algorithm SHA256).Hash)")
-    }
-    $items.Add("hextra=$((git -C $HEXTRA_DIR rev-parse HEAD).Trim())")
-    $items.Add("hugo=$((hugo version) -replace ' BuildDate=.*$', '')")
-    $bytes = [System.Text.Encoding]::UTF8.GetBytes(($items -join "`n"))
-    return [System.BitConverter]::ToString(
-        [System.Security.Cryptography.SHA256]::Create().ComputeHash($bytes)).Replace('-', '')
-}
-
-$presentationFile = "$VOX_HUGO\last-published-presentation.txt"
-$presentationNow  = Get-PresentationFingerprint
-$presentationLast = if (Test-Path $presentationFile) { (Get-Content $presentationFile -Raw).Trim() } else { $null }
-
-$pathsToCheck = Get-HtmlPathsToCheck $CONTENT_DIR $publicDir $lastCommit $currentCommit
-$isFullScan   = $ForceFullSync -or (-not $lastCommit)
-
-# Mudança de apresentação reescreve todas as páginas, e o diff de conteúdo não
-# dá por isso. Hashear tudo é local e paralelo (segundos); o upload continua a
-# ser só do que diferir do manifest.
-$presentationChanged = -not $isFullScan -and ($presentationNow -ne $presentationLast)
-$hashedEverything    = $isFullScan -or $presentationChanged
-
-if ($isFullScan) {
-    Write-Host "[vox] $(if ($ForceFullSync) { 'ForceFullSync' } else { 'Primeiro publish' }) — scan completo..."
-    $filesToHash = Get-ChildItem $publicDir -Recurse -File | Where-Object { $_.Name -ne '.DS_Store' }
-} elseif ($presentationChanged) {
-    Write-Host "[vox] Apresentação mudou (layouts/assets/config/tema/Hugo) — hash de tudo, upload só do que diferir..."
-    $filesToHash = Get-ChildItem $publicDir -Recurse -File | Where-Object { $_.Name -ne '.DS_Store' }
-} elseif ($lastCommit -eq $currentCommit) {
-    Write-Host "[vox] Sem novos commits em vox-content — nada a publicar."
-    $filesToHash = @()
-} else {
-    $episodeCount = (git -C $CONTENT_DIR diff --name-only $lastCommit $currentCommit | Where-Object { $_ -match '\.(md|json)$' } | Measure-Object).Count
-    Write-Host "[vox] $($pathsToCheck.Count) arquivos a verificar (git diff: $episodeCount episódios)..."
-    $filesToHash = $pathsToCheck | ForEach-Object {
-        $full = Join-Path $publicDir $_
-        if (Test-Path $full) { Get-Item $full }
-    } | Where-Object { $_ }
-}
-
+Write-Host "[vox] Hash do public/ inteiro..."
+$filesToHash = Get-ChildItem $publicDir -Recurse -File | Where-Object { $_.Name -ne '.DS_Store' }
 $results = $filesToHash | ForEach-Object -Parallel {
     $rel  = $_.FullName.Substring($using:publicDir.Length + 1)
     $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash
     [PSCustomObject]@{ Rel = $rel; Hash = $hash }
 } -ThrottleLimit 24
 
-$newManifest = $prevManifest.Clone()
+$newManifest = @{}
 $toUpload    = [System.Collections.Generic.List[string]]::new()
-
 foreach ($r in $results) {
     $newManifest[$r.Rel] = $r.Hash
     if ($prevManifest[$r.Rel] -ne $r.Hash) { $toUpload.Add($r.Rel) }
 }
 
-# Incremental-only: assets estáticos (css, js, images, scripts, favicons, etc.)
-# não são derivados do git diff de vox-content, então Get-HtmlPathsToCheck
-# nunca os inclui. Hugo regenera css/js com nome content-hashed quando o
-# source muda — sem esta re-verificação, mudanças em layouts/ ou assets/
-# ficariam presas (bug encontrado após v2.0.3: footer css publicado mas
-# o arquivo .css novo ficou 404 no S3).
-#
-# Estratégia: hashear uma whitelist de diretórios de assets e ficheiros
-# raíz estáticos e fazer a mesma comparação contra o manifest. São
-# sempre diminutos (<300KB total), custo trivial.
-if (-not $hashedEverything) {
-    $assetDirs = @('css', 'js', 'images', 'scripts', 'transcript')
-    $assetRootFiles = @(
-        'robots.txt', '404.html', 'index.html', 'index.xml', 'sitemap.xml', 'site.webmanifest',
-        'favicon.svg', 'favicon.ico', 'favicon-16x16.png', 'favicon-32x32.png',
-        'apple-touch-icon.png',
-        'android-chrome-192x192.png', 'android-chrome-512x512.png'
-    )
-
-    $assetFiles = [System.Collections.Generic.List[System.IO.FileInfo]]::new()
-    foreach ($d in $assetDirs) {
-        $full = Join-Path $publicDir $d
-        if (Test-Path $full) {
-            Get-ChildItem $full -Recurse -File | ForEach-Object { $assetFiles.Add($_) }
-        }
-    }
-    foreach ($f in $assetRootFiles) {
-        $full = Join-Path $publicDir $f
-        if (Test-Path $full) { $assetFiles.Add((Get-Item $full)) }
-    }
-
-    $assetResults = $assetFiles | ForEach-Object -Parallel {
-        $rel  = $_.FullName.Substring($using:publicDir.Length + 1)
-        $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash
-        [PSCustomObject]@{ Rel = $rel; Hash = $hash }
-    } -ThrottleLimit 16
-
-    $assetAdded = 0
-    foreach ($r in $assetResults) {
-        $newManifest[$r.Rel] = $r.Hash
-        if ($prevManifest[$r.Rel] -ne $r.Hash -and -not $toUpload.Contains($r.Rel)) {
-            $toUpload.Add($r.Rel)
-            $assetAdded++
-        }
-    }
-    if ($assetAdded -gt 0) {
-        Write-Host "[vox] +$assetAdded asset(s) estáticos com hash novo"
-    }
-}
-
-# Detetar deleções: só quando se hasheou o public/ inteiro, senão um arquivo
-# que o diff não trouxe parece apagado e sai do ar por engano.
+# Deleções: estava no manifest anterior e não existe mais no public/
+# (o build usa --cleanDestinationDir, então o public/ reflete só o que o Hugo gera)
 $toDelete = [System.Collections.Generic.List[string]]::new()
-if ($hashedEverything) {
-    foreach ($key in $prevManifest.Keys) {
-        if (-not (Test-Path (Join-Path $publicDir $key))) {
-            $toDelete.Add($key)
-            $newManifest.Remove($key) | Out-Null
-        }
-    }
+foreach ($key in $prevManifest.Keys) {
+    if (-not $newManifest.ContainsKey($key)) { $toDelete.Add($key) }
 }
 
 Write-Host "[vox] Upload: $($toUpload.Count) | Delete: $($toDelete.Count)"
@@ -479,17 +334,18 @@ $gossipUrl = 'http://localhost:8080/api/gossip-gate/send'
 
 if ($toUpload.Count -eq 0 -and $toDelete.Count -eq 0) {
     # sem alterações — não notifica
-} elseif ($isFullScan) {
-    $msg = "🌐 <b>Vox publicado (Hugo)</b> — full sync: $($toUpload.Count) arquivos enviados ao S3"
-    Invoke-RestMethod -Uri $gossipUrl -Method Post `
-        -Headers @{ 'X-Api-Key' = $gossipKey; 'Content-Type' = 'application/json' } `
-        -Body ([System.Text.Encoding]::UTF8.GetBytes((@{ message = $msg; parse_mode = 'HTML' } | ConvertTo-Json -Compress))) | Out-Null
 } else {
-    # Filtrar só episódios: paths com padrão {year}\...\{slug}\index.html
-    $episodes = $toUpload | Where-Object { $_ -match '^\d{4}\\' -and $_ -match '\\index\.html$' -and $_ -match '\\[wW]\d+\\' }
+    # Episódios novos vêm do git diff (arquivos .md adicionados), não do upload:
+    # com o hash do public/ inteiro, o upload inclui páginas de episódios antigos
+    # que mudaram só indiretamente (navegação, listagens).
+    $episodes = @()
+    if ($prevCommit -and $prevCommit -ne $currentCommit) {
+        $episodes = @(git -C $CONTENT_DIR diff --name-only --diff-filter=A $prevCommit $currentCommit |
+            Where-Object { $_ -match '^\d{4}/.*/[wW]\d+/[^/]+\.md$' })
+    }
     if ($episodes) {
         $lines = $episodes | ForEach-Object {
-            $dir = [System.IO.Path]::GetDirectoryName($_) -replace '\\', '/'
+            $dir  = $_ -replace '\.md$', ''
             $slug = ($dir -split '/')[-1]
             "• <a href=""https://vox.thluiz.com/$dir/"">$slug</a>"
         }
