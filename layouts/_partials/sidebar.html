@@ -202,12 +202,14 @@
           {{- end -}}
         {{- end -}}
       {{- else -}}
-        {{- /* Vox: reverse sort at level 0 (newest year first), add episode counts */ -}}
+        {{- /* Vox: reverse sort at level 0 (newest year first).
+               Sem contadores: o menu é renderizado em toda página, então um
+               contador aqui fazia cada episódio novo reescrever o site inteiro.
+               As contagens ficam só na página do ano (list.html). */ -}}
         {{- range $items.ByTitle.Reverse }}
           {{- $active := eq $pageURL .RelPermalink -}}
           {{- $shouldOpen := or (.IsAncestor $page) $active -}}
-          {{- $count := len .RegularPagesRecursive -}}
-          {{- $linkTitle := printf "%s (%d)" (partial "utils/title" .) $count -}}
+          {{- $linkTitle := partial "utils/title" . -}}
           <li class="{{ if $shouldOpen }}open{{ end }}">
             {{- template "sidebar-item-link" dict "context" . "active" $active "open" $shouldOpen "title" $linkTitle "link" .RelPermalink -}}
             {{- /* Vox: skip month level, show weeks directly under year */ -}}
@@ -247,7 +249,7 @@
           {{- $link := .link -}}
           {{- $keyParts := split .key "/" -}}
           {{- $weekName := upper (index $keyParts (sub (len $keyParts) 1)) -}}
-          {{- $linkTitle := printf "%s (%d)" $weekName .count -}}
+          {{- $linkTitle := $weekName -}}
           {{- $active := eq (strings.TrimSuffix "/" $pageURL) (strings.TrimSuffix "/" $link) -}}
           <li class="hx:flex hx:flex-col">
             <div class="hextra-sidebar-item hx:group hx:relative hx:flex hx:items-center" data-active="{{ if $active }}true{{ else }}false{{ end }}">
