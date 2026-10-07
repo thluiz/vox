@@ -66,10 +66,20 @@ commit do Hextra e versão do Hugo (`last-published-presentation.txt`) — mexer
 layout/CSS/config publica sozinho na hora seguinte. `-ForceFullSync` só ignora
 o gate.
 
+**Conferência contra o bucket:** todo publish (que passe do gate) lista o
+bucket (`list-objects-v2`, ~20s) e sobe também qualquer arquivo do `public/`
+ausente ou com tamanho diferente no S3, mesmo que o manifest diga que já foi.
+Depois do upload, confere cada arquivo enviado (tamanho + ETag/MD5 abaixo de
+8 MiB), reenvia o que não bateu (até 3 tentativas) e só então grava o manifest.
+Motivo: em 2026-10-07 duas rodadas subiram uma fração dos arquivos com
+`aws s3 cp` saindo 0, o manifest registrou tudo e as rodadas seguintes diziam
+"nada a publicar" com o episódio em 404. Para curar drift sem episódio novo,
+basta um publish manual (sem `-GateOnNewEpisodes`) — não precisa `-S3Sync`.
+
 **Notificação:** lista os episódios novos pelo git diff do `vox-content`
 (`.md` adicionados), não pelo upload.
-**Quando usar `-S3Sync`:** o S3 divergiu do manifest (alguém mexeu no bucket à
-mão, upload interrompido antes de gravar o manifest). Reenvia o site inteiro.
+**Quando usar `-S3Sync`:** praticamente nunca — só se o bucket divergir de um
+jeito que a conferência por tamanho não pega. Reenvia o site inteiro.
 Quirk: `aws s3 sync` pode retornar **exit 1 com Unicode em paths**
 (ex: `tags/ética/`) — os arquivos sobem, mas o script aborta antes do
 CloudFront invalidation; rerun ou invalidation manual.

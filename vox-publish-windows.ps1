@@ -5,9 +5,10 @@ param(
     # Ignora o gate do -GateOnNewEpisodes. Todo publish já hasheia o public/
     # inteiro e sobe só o que diferir; não existe mais modo incremental.
     [switch]$ForceFullSync,
-    # Escape hatch para drift entre S3 e manifest (ex: mexeram no bucket à mão):
-    # usa 'aws s3 sync --delete', que reenvia o site inteiro (Hugo reescreve o
-    # mtime de todo o public/). Implica -ForceFullSync.
+    # Último recurso: 'aws s3 sync --delete', que reenvia o site inteiro (Hugo
+    # reescreve o mtime de todo o public/). Drift comum (arquivo ausente ou com
+    # tamanho diferente no bucket) já é detectado e corrigido em todo publish
+    # pela listagem do bucket — isto só serve para o resto. Implica -ForceFullSync.
     [switch]$S3Sync,
     # Usado pelo scheduler horário: sai antes do build se nem vox-content nem a
     # apresentação mudaram desde o último publish. Manuais (sem a flag) sempre buildam.
@@ -213,15 +214,60 @@ $filesToHash = Get-ChildItem $publicDir -Recurse -File | Where-Object { $_.Name 
 $results = $filesToHash | ForEach-Object -Parallel {
     $rel  = $_.FullName.Substring($using:publicDir.Length + 1)
     $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash
-    [PSCustomObject]@{ Rel = $rel; Hash = $hash }
+    [PSCustomObject]@{ Rel = $rel; Hash = $hash; Size = $_.Length }
 } -ThrottleLimit 24
 
+$bucketName = $bucket -replace '^s3://', ''
+
+# Índice do bucket (chave -> [Key, Size, ETag]) via list-objects-v2: ~60 LISTs,
+# ~20s para ~59k objetos, custo desprezível. É a fonte da verdade sobre o que
+# está no S3 — o manifest só diz o que o script ACHA que subiu. Em 2026-10-07
+# duas rodadas subiram uma fração dos arquivos com 'aws s3 cp' saindo 0; o
+# manifest gravou tudo como enviado e as rodadas seguintes não viam nada a subir
+# (episódio novo 404 até um -S3Sync do site inteiro).
+function Get-S3Index {
+    $tmp = Join-Path $env:TEMP "vox-publish-s3-index.json"
+    $prevEnc = [Console]::OutputEncoding
+    [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)   # chaves com acento (tags/ética)
+    try {
+        & $aws s3api list-objects-v2 --bucket $bucketName `
+            --query 'Contents[].[Key,Size,ETag]' --output json > $tmp
+        if ($LASTEXITCODE -ne 0) { throw "[vox] Falha no list-objects-v2 (exit $LASTEXITCODE)" }
+    } finally {
+        [Console]::OutputEncoding = $prevEnc
+    }
+    $idx = [System.Collections.Generic.Dictionary[string, object]]::new([StringComparer]::Ordinal)
+    foreach ($o in (Get-Content $tmp -Raw -Encoding utf8 | ConvertFrom-Json)) { $idx[$o[0]] = $o }
+    Remove-Item $tmp -Force -ErrorAction SilentlyContinue
+    return $idx
+}
+
+function ConvertTo-S3Key([string]$rel) { $rel.Replace('\', '/') }
+
 $newManifest = @{}
+$sizeOf      = @{}
 $toUpload    = [System.Collections.Generic.List[string]]::new()
+$queued      = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
 foreach ($r in $results) {
     $newManifest[$r.Rel] = $r.Hash
-    if ($prevManifest[$r.Rel] -ne $r.Hash) { $toUpload.Add($r.Rel) }
+    $sizeOf[$r.Rel]      = $r.Size
+    if ($prevManifest[$r.Rel] -ne $r.Hash -and $queued.Add($r.Rel)) { $toUpload.Add($r.Rel) }
 }
+
+# Drift: arquivo do public/ ausente no S3 ou com tamanho diferente sobe também,
+# mesmo que o manifest diga que já foi. Assim um upload perdido se corrige no
+# publish seguinte em vez de exigir -S3Sync.
+Write-Host "[vox] Conferindo public/ contra o bucket..."
+$s3Index = Get-S3Index
+$drift = 0
+foreach ($rel in $newManifest.Keys) {
+    $obj = $s3Index[(ConvertTo-S3Key $rel)]
+    if ((-not $obj -or [long]$obj[1] -ne $sizeOf[$rel]) -and $queued.Add($rel)) {
+        $toUpload.Add($rel)
+        $drift++
+    }
+}
+if ($drift -gt 0) { Write-Host "[vox] Drift S3: $drift arquivo(s) ausentes/desatualizados no bucket" }
 
 # Deleções: estava no manifest anterior e não existe mais no public/
 # (o build usa --cleanDestinationDir, então o public/ reflete só o que o Hugo gera)
@@ -250,8 +296,7 @@ if ($toUpload.Count -eq 0 -and $toDelete.Count -eq 0) {
         # arquivos = ~20 min). Em vez disso: espelha só os alterados numa pasta
         # de staging (hard links, mesmo volume — sem copiar dados) e sobe tudo
         # num único 's3 cp --recursive' com concorrência alta.
-        if ($toUpload.Count -gt 0) {
-            Write-Host "[vox] Upload de $($toUpload.Count) arquivo(s)..."
+        function Invoke-StagedUpload([System.Collections.Generic.List[string]]$rels) {
             $staging = Join-Path $VOX_HUGO ".upload-staging"
             if (Test-Path $staging) { Remove-Item $staging -Recurse -Force }
             if (-not ('Vox.Native' -as [type])) {
@@ -260,7 +305,7 @@ if ($toUpload.Count -eq 0 -and $toDelete.Count -eq 0) {
 public static extern bool CreateHardLink(string lpFileName, string lpExistingFileName, IntPtr lpSecurityAttributes);
 '@
             }
-            foreach ($rel in $toUpload) {
+            foreach ($rel in $rels) {
                 $src = Join-Path $publicDir $rel
                 $dst = Join-Path $staging $rel
                 [void][System.IO.Directory]::CreateDirectory([System.IO.Path]::GetDirectoryName($dst))
@@ -276,21 +321,57 @@ public static extern bool CreateHardLink(string lpFileName, string lpExistingFil
                 Set-Content $awsCfg -Encoding ascii
             $env:AWS_CONFIG_FILE = $awsCfg
             $env:PYTHONUTF8 = '1'   # paths com acento (tags/ética) no output do CLI
+            $prevEap = $ErrorActionPreference
             try {
+                # stderr do aws.exe não entra no transcript se não passar pelo
+                # pipeline do PowerShell — sem isso, erros do upload somem do log
+                $ErrorActionPreference = 'Continue'
                 & $aws s3 cp $staging $bucket --recursive `
-                    --cache-control $cacheCtrl --only-show-errors
+                    --cache-control $cacheCtrl --only-show-errors 2>&1 |
+                    ForEach-Object { Write-Host "  [aws] $_" }
                 $cpExit = $LASTEXITCODE
             } finally {
+                $ErrorActionPreference = $prevEap
                 $env:AWS_CONFIG_FILE = $prevCfg
                 Remove-Item $staging -Recurse -Force -ErrorAction SilentlyContinue
             }
             if ($cpExit -ne 0) { throw "[vox] Falha no upload (aws s3 cp exit $cpExit)" }
         }
 
+        # Confere no bucket cada arquivo enviado: existe, mesmo tamanho e, abaixo
+        # do multipart_threshold do CLI (8 MiB, ETag = MD5), mesmo conteúdo.
+        function Get-UnverifiedUploads([System.Collections.Generic.List[string]]$rels) {
+            $idx = Get-S3Index
+            $bad = [System.Collections.Generic.List[string]]::new()
+            foreach ($rel in $rels) {
+                $obj = $idx[(ConvertTo-S3Key $rel)]
+                if (-not $obj -or [long]$obj[1] -ne $sizeOf[$rel]) { $bad.Add($rel); continue }
+                if ($sizeOf[$rel] -lt 8MB) {
+                    $md5 = (Get-FileHash -LiteralPath (Join-Path $publicDir $rel) -Algorithm MD5).Hash.ToLowerInvariant()
+                    if ($obj[2].Trim('"') -ne $md5) { $bad.Add($rel) }
+                }
+            }
+            return , $bad
+        }
+
+        if ($toUpload.Count -gt 0) {
+            $pending = $toUpload
+            for ($attempt = 1; $attempt -le 3 -and $pending.Count -gt 0; $attempt++) {
+                Write-Host "[vox] Upload de $($pending.Count) arquivo(s) (tentativa $attempt)..."
+                Invoke-StagedUpload $pending
+                $pending = Get-UnverifiedUploads $pending
+                if ($pending.Count -gt 0) {
+                    Write-Host "[vox] $($pending.Count) arquivo(s) não conferem no S3: $(($pending | Select-Object -First 10) -join ', ')"
+                }
+            }
+            # Manifest não é gravado: o próximo publish detecta e reenvia
+            if ($pending.Count -gt 0) { throw "[vox] Upload incompleto: $($pending.Count) arquivo(s) não conferem no S3 após 3 tentativas" }
+            Write-Host "[vox] Upload conferido no S3 ($($toUpload.Count) arquivo(s))"
+        }
+
         # Deleções em lote (delete-objects aceita até 1000 chaves por chamada)
         if ($toDelete.Count -gt 0) {
             Write-Host "[vox] Removendo $($toDelete.Count) arquivo(s) do S3..."
-            $bucketName = $bucket -replace '^s3://', ''
             $batchFile  = Join-Path $env:TEMP "vox-publish-delete.json"
             for ($i = 0; $i -lt $toDelete.Count; $i += 1000) {
                 $chunk = $toDelete[$i..([Math]::Min($i + 999, $toDelete.Count - 1))]
