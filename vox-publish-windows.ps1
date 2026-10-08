@@ -27,6 +27,19 @@ $logDir = Join-Path $VOX_HUGO "logs"
 if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
 $logFile = Join-Path $logDir ("vox-publish-{0}.log" -f (Get-Date -Format 'yyyy-MM-dd_HHmmss'))
 Start-Transcript -Path $logFile -Force | Out-Null
+
+# Um publish por vez. Dois em paralelo dividem o public/: o --cleanDestinationDir
+# de um apaga arquivos enquanto o outro hasheia, e o que sumiu vira deleção no
+# S3 (2026-10-08: manual às 09:02 sobre o agendado das 09:00 apagou 955 arquivos).
+$publishLock = [System.Threading.Mutex]::new($false, 'Global\VoxPublish')
+$hasLock = $false
+try { $hasLock = $publishLock.WaitOne(0) } catch [System.Threading.AbandonedMutexException] { $hasLock = $true }
+if (-not $hasLock) {
+    Write-Host "[vox] Outro publish em andamento — saindo sem fazer nada."
+    Stop-Transcript | Out-Null
+    exit 0
+}
+
 try {
 
 # Carregar .env (AWS credentials)
@@ -456,6 +469,7 @@ if ($toUpload.Count -eq 0 -and $toDelete.Count -eq 0) {
     } catch { Write-Error "[vox] (falha ao notificar GossipGate: $_)" }
     throw
 } finally {
+    $publishLock.ReleaseMutex()
     Stop-Transcript | Out-Null
     Get-ChildItem (Join-Path $VOX_HUGO "logs") -Filter "vox-publish-*.log" |
         Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-7) } |
