@@ -50,6 +50,11 @@ if (-not $env:AWS_CF_DISTRIBUTION_ID) {
 
 $env:AWS_DEFAULT_REGION = if ($env:AWS_REGION) { $env:AWS_REGION } else { "sa-east-1" }
 $aws = 'C:\Program Files\Amazon\AWSCLIV2\aws.exe'
+# O aws.exe é Python: sem isto escreve stdout em cp1252 e as chaves com acento
+# (tags/ética) chegam corrompidas na listagem do bucket — no scheduler ~534 tags
+# viravam "drift" e subiam de novo a cada rodada. Sessões interativas costumam
+# já ter a variável, por isso o publish manual não mostrava o problema.
+$env:PYTHONUTF8 = '1'
 
 # Pull robusto: resolve untracked-collisions e nunca falha silenciosamente.
 # Causa histórica de "site parado sem ninguém perceber": um .json untracked no
@@ -320,7 +325,6 @@ public static extern bool CreateHardLink(string lpFileName, string lpExistingFil
             "[default]`ns3 =`n    max_concurrent_requests = 64`n    max_queue_size = 10000`n" |
                 Set-Content $awsCfg -Encoding ascii
             $env:AWS_CONFIG_FILE = $awsCfg
-            $env:PYTHONUTF8 = '1'   # paths com acento (tags/ética) no output do CLI
             $prevEap = $ErrorActionPreference
             try {
                 # stderr do aws.exe não entra no transcript se não passar pelo
