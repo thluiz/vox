@@ -1,6 +1,9 @@
 {{- /* Normalize both sides through the typographer (markdownify) so smart
-       quotes, apostrophes, dashes and ellipses match the raw frontmatter title */ -}}
-{{- $titleNorm := .Page.Title | markdownify | plainify -}}
+       quotes, apostrophes, dashes and ellipses match the raw frontmatter title.
+       A leading "337. " would be read as an ordered list and the number dropped,
+       so escape the dot first. */ -}}
+{{- $titleSafe := replaceRE `^(\d+)\. ` `$1\. ` .Page.Title -}}
+{{- $titleNorm := $titleSafe | markdownify | plainify -}}
 {{- if and (eq .Level 1) (eq (plainify .Text) $titleNorm) -}}
   {{- /* Skip H1 that duplicates the page title from frontmatter */ -}}
 {{- else -}}
