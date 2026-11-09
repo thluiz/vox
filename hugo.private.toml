@@ -1,0 +1,65 @@
+# Vox privado (vox.thluiz.com/privado/<guid>/). Mesmo tema, layouts e assets do Vox público;
+# conteúdo vem de vox-private-content. O baseURL real (com o guid) NÃO fica aqui:
+# vox-publish-private.ps1 passa --baseURL na hora do build, lendo ~/.secrets/vox-private.json.
+baseURL = "https://vox.thluiz.com/privado/"
+title = "Vox Privado"
+locale = "pt-BR"
+theme = "hextra"
+themesDir = 'E:\'
+
+disableAliases = true
+disablePathToLower = true
+
+ignoreFiles = ['\.obsidian', '\.trash', 'README\.md', '.*\.private\.md']
+
+enableGitInfo = false
+enableRobotsTXT = false
+
+[module]
+  [[module.mounts]]
+    source = "content-home-private"
+    target = "content"
+  [[module.mounts]]
+    source = 'E:/vox-private-content'
+    target = "content"
+    files = ["! index.md", "! _meta/**"]
+  [[module.mounts]]
+    source = "assets"
+    target = "assets"
+  [[module.mounts]]
+    source = "layouts"
+    target = "layouts"
+  [[module.mounts]]
+    source = "static"
+    target = "static"
+
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
+
+[taxonomies]
+  tag = "tags"
+
+[params]
+  description = "Vox privado"
+  dateFormat = "2006-01-02"
+
+  [params.theme]
+    default = "dark"
+
+  [params.navbar]
+    displayTitle = true
+    displayLogo = false
+
+  [params.footer]
+    displayPoweredBy = false
+
+  [params.page]
+    width = "wide"
+
+[menu]
+  [[menu.main]]
+    name = "Tags"
+    pageRef = "/tags"
+    weight = 1

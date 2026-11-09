@@ -92,6 +92,22 @@ npm test                                            # local
 VOX_TEST_BASE_URL=https://vox.thluiz.com npm test  # production
 ```
 
+## Private area (/privado)
+
+`https://vox.thluiz.com/privado/<guid>/` serves a second site, built from `vox-private-content` with the
+same theme. The guid is the credential; `/privado/` asks for an HTTP password and links to it. Guid and
+password live in `~/.secrets/vox-private.json` (never versioned). It runs on its own S3 bucket behind the
+same CloudFront distribution; the public publish never sees it.
+
+```
+pwsh -NoProfile -File vox-publish-private.ps1 [-GateOnNewEpisodes] [-Force] [-AwsProfile scholion-admin]
+```
+
+Setup, in order, from `infra/private/` (idempotent, run with the admin profile): `01-setup` (bucket, KeyValueStore,
+edge function, headers policy), `03-seed` (guid, password), `02-distribution` (origin and behaviors on the Vox
+distribution, saved beforehand), `04-iam` (least-privilege deploy user), `05-schedule` (hourly task at minute 30).
+`03-seed.ps1 -Rotate` replaces the guid and password and revokes the old guid.
+
 ## Requirements
 
 - **Hugo** (extended) ≥ 0.148

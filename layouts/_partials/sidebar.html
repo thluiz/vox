@@ -225,14 +225,17 @@
 {{- define "vox-sidebar-weeks" -}}
   {{- $page := .page -}}
   {{- $pageURL := .page.RelPermalink -}}
+  {{- /* Base path of the site ("/" on the public Vox, "/privado/<guid>/" on the private one):
+         the year/week segments are read after it, and the links are built on it. */ -}}
+  {{- $base := site.Home.RelPermalink -}}
   {{- /* Build week list by grouping pages by their week URL segment */ -}}
   {{- $weekCounts := dict -}}
   {{- $weekLinks := dict -}}
   {{- range .context.RegularPagesRecursive -}}
-    {{- $parts := split (strings.TrimPrefix "/" .RelPermalink) "/" -}}
+    {{- $parts := split (strings.TrimPrefix $base .RelPermalink) "/" -}}
     {{- if ge (len $parts) 4 -}}
       {{- $weekKey := upper (index $parts 2) -}}
-      {{- $weekLink := printf "/%s/#%s" (index $parts 0) (upper (index $parts 2)) -}}
+      {{- $weekLink := printf "%s%s/#%s" $base (index $parts 0) (upper (index $parts 2)) -}}
       {{- $cur := index $weekCounts $weekKey | default 0 -}}
       {{- $weekCounts = merge $weekCounts (dict $weekKey (add $cur 1)) -}}
       {{- $weekLinks = merge $weekLinks (dict $weekKey $weekLink) -}}

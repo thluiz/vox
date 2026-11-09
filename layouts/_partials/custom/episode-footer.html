@@ -52,7 +52,7 @@
         <br><span class="vox-footer-muted">
           {{- range $i, $c := $categoryParts -}}
             {{- if $i }} › {{ end -}}
-            <a href="{{ printf "/tags/%s/" (urlize (lower $c)) | relURL }}">{{ $c }}</a>
+            <a href="{{ printf "tags/%s/" (urlize (lower $c)) | relURL }}">{{ $c }}</a>
           {{- end -}}
           {{- with $meta.podcast_type }} · {{ . }}{{ end -}}
         </span>
@@ -77,7 +77,7 @@
         {{ if $isEN }}Participants{{ else }}Participantes{{ end }}:
         {{- range $i, $p := . }}
           {{- if $i }},{{ end }}
-          <a href="{{ printf "/tags/%s/" (urlize (lower $p)) | relURL }}">{{ $p }}</a>
+          <a href="{{ printf "tags/%s/" (urlize (lower $p)) | relURL }}">{{ $p }}</a>
         {{- end }}
       </div>
       <em class="vox-footer-muted vox-footer-participants-note">
@@ -93,7 +93,7 @@
   {{/* 4. Technical links — JSON sidecar + reader transcript + UUID */}}
   <div class="vox-footer-tech vox-footer-muted">
     {{- if $hasTranscript }}
-      <a href="{{ printf "/transcript/?json=%s" $jsonURL | relURL }}">
+      <a href="{{ printf "transcript/?json=%s" $jsonURL | relURL }}">
         {{- if $isEN }}Read transcript{{ else }}Ler transcrição{{ end -}}
       </a>
       ·

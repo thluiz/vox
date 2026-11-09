@@ -8,6 +8,30 @@ and an explorer sidebar organised by year/week.
 
 ---
 
+## v3.1.0 — 2026-11-09 — Vox privado (/privado)
+
+Área privada no próprio vox.thluiz.com para material que não pode ir ao site público (cursos e aulas
+do Thiago). O conteúdo vive em `vox-private-content` (outro repositório, mesmo layout do
+`vox-content`) e é publicado em `vox.thluiz.com/privado/<guid>/`.
+
+- **Acesso:** `/privado/<guid>/…` abre só com o guid certo (token aleatório; guid errado dá 404);
+  `/privado/` pede senha HTTP e leva ao site. Uma função de borda (`edge/vox-private-edge.js`)
+  decide; o guid e o hash da senha ficam numa KeyValueStore, nunca no código nem no git.
+- **Isolamento:** bucket próprio (`hermes-vox-private-br`), segunda origem da distribuição do Vox com as
+  regras `privado` e `privado/*`. O bucket público e o `vox-publish-windows.ps1` não são tocados (o
+  publish público apaga do bucket tudo que não está no `public/`, por isso nada privado vai para lá).
+  Cabeçalhos `X-Robots-Tag: noindex`, `no-referrer`, HSTS.
+- **Build:** `hugo.private.toml` (mesmo tema, layouts e assets; home em `content-home-private/`). O
+  baseURL com o guid é injetado na hora do build por `vox-publish-private.ps1`.
+- **Publicação:** `vox-publish-private.ps1` (pull ff-only, build, `s3 sync` só no prefixo do guid,
+  portal, invalidação, conferência de 200). Usa o mutex `GlobalVoxPublish` do publish público,
+  esperando em vez de sair, porque os dois builds dividem `layouts/` e `resources/`.
+- **Layouts com prefixo:** os links com barra inicial passados a `relURL` (tags, transcrição, script) e o
+  menu lateral por ano/semana, que lia o ano do início da URL, agora respeitam o caminho do baseURL.
+  Para o site público (baseURL na raiz) o HTML gerado é idêntico (conferido com build de teste).
+- **Infra repetível:** `infra/private/01…05` (bucket, KVS, função, política de cabeçalhos, distribuição,
+  sementes, IAM, tarefa agendada), todos idempotentes; a distribuição é salva antes de ser alterada.
+
 ## v3.0.1 — 2026-07-08 — Publish: pull robusto (fim do sucesso falso)
 
 ### The bug

@@ -19,3 +19,7 @@ scripts/series/*.log
 scripts/series/*.next
 last-published-presentation.txt
 .upload-staging/
+public-private/
+public-private-test/
+last-published-private-commit.txt
+last-published-private-presentation.txt
