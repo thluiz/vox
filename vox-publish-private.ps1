@@ -12,7 +12,7 @@
 # mesmo arquivo; nada disso é impresso nem commitado.
 #
 #   pwsh -NoProfile -File vox-publish-private.ps1                    # manual: sempre builda
-#   pwsh -NoProfile -File vox-publish-private.ps1 -GateOnNewEpisodes # agendador: só se algo mudou
+#   pwsh -NoProfile -File vox-publish-private.ps1 -GateOnNewEpisodes # agendador (a cada 15 min): só se algo mudou
 param(
     [switch]$SkipPull,
     [switch]$GateOnNewEpisodes,
@@ -172,8 +172,28 @@ try {
     $currentCommit | Set-Content $lastCommitFile -Encoding UTF8
     $presentationNow | Set-Content $lastPresFile -Encoding UTF8
     Write-Host '[vox-private] Publicado com sucesso!'
-    # Notificação genérica: sem título, sem URL (o guid é a credencial)
-    Send-Gossip "🔒 <b>Vox privado publicado</b> — $pageCount páginas"
+    # Telegram (particular): episódios novos com o link já no ar, como o publish público faz.
+    # Os novos vêm do git diff dos .md adicionados desde o último publish, não do upload.
+    $episodes = @()
+    if ($lastCommit -and $lastCommit -ne $currentCommit) {
+        $episodes = @(git -C $ContentDir diff --name-only --diff-filter=A $lastCommit $currentCommit |
+            Where-Object { $_ -match '^\d{4}/.*/[wW]\d+/[^/]+\.md$' })
+    }
+    if ($episodes.Count -gt 0) {
+        $lines = foreach ($e in $episodes) {
+            $dir = $e -replace '\.md$', ''
+            $label = ($dir -split '/')[-1]
+            try {
+                $j = Get-Content (Join-Path $ContentDir ($dir + '.json')) -Raw -Encoding utf8 | ConvertFrom-Json
+                if ($j.title) { $label = $j.title }
+            } catch {}
+            "• <a href=""$siteUrl$dir/"">$([System.Net.WebUtility]::HtmlEncode($label))</a>"
+        }
+        $plural = if ($episodes.Count -gt 1) { 's' } else { '' }
+        Send-Gossip ("🔒 <b>Vox privado publicado</b> — $($episodes.Count) episódio$plural`n" + ($lines -join "`n"))
+    } else {
+        Send-Gossip "🔒 <b>Vox privado publicado</b> — $pageCount páginas"
+    }
 }
 catch {
     Write-Error "FATAL: $_"

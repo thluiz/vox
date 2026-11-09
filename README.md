@@ -105,7 +105,8 @@ pwsh -NoProfile -File vox-publish-private.ps1 [-GateOnNewEpisodes] [-Force] [-Aw
 
 Setup, in order, from `infra/private/` (idempotent, run with the admin profile): `01-setup` (bucket, KeyValueStore,
 edge function, headers policy), `03-seed` (guid, password), `02-distribution` (origin and behaviors on the Vox
-distribution, saved beforehand), `04-iam` (least-privilege deploy user), `05-schedule` (hourly task at minute 30).
+distribution, saved beforehand), `04-iam` (least-privilege deploy user), `05-schedule` (task every 15 minutes, gated: a run with nothing new costs one git fetch).
+Each publish that brings new episodes sends one Telegram message with the links to them, already live.
 `03-seed.ps1 -Rotate` replaces the guid and password and revokes the old guid.
 
 ## Requirements
