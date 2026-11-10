@@ -335,7 +335,7 @@ public static extern bool CreateHardLink(string lpFileName, string lpExistingFil
             # Concorrência do CLI via config temporário (credenciais vêm do .env)
             $prevCfg = $env:AWS_CONFIG_FILE
             $awsCfg  = Join-Path $env:TEMP "vox-publish-aws-config"
-            "[default]`ns3 =`n    max_concurrent_requests = 64`n    max_queue_size = 10000`n" |
+            "[default]`ns3 =`n    max_concurrent_requests = 16`n    max_queue_size = 10000`n" |
                 Set-Content $awsCfg -Encoding ascii
             $env:AWS_CONFIG_FILE = $awsCfg
             $prevEap = $ErrorActionPreference
@@ -352,7 +352,10 @@ public static extern bool CreateHardLink(string lpFileName, string lpExistingFil
                 $env:AWS_CONFIG_FILE = $prevCfg
                 Remove-Item $staging -Recurse -Force -ErrorAction SilentlyContinue
             }
-            if ($cpExit -ne 0) { throw "[vox] Falha no upload (aws s3 cp exit $cpExit)" }
+            # Falha parcial (ex.: SSL UNEXPECTED_EOF em alguns arquivos) não aborta: o
+            # chamador confere cada arquivo no S3 e reenvia só os que faltam (3 tentativas);
+            # se sobrar algum, ele lança 'Upload incompleto' e o manifest não é gravado.
+            if ($cpExit -ne 0) { Write-Host "[vox] aws s3 cp saiu com $cpExit — conferindo no S3 o que faltou..." }
         }
 
         # Confere no bucket cada arquivo enviado: existe, mesmo tamanho e, abaixo
