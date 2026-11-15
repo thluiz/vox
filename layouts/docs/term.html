@@ -4,9 +4,17 @@
     <article class="hx:w-full hx:break-words hx:flex hx:min-h-[calc(100vh-var(--navbar-height))] hx:min-w-0 hx:justify-center hx:pb-8">
       <main id="content" class="hx:w-full hx:min-w-0 hextra-max-content-width hx:px-6 hx:pt-4 hx:md:px-12">
         <h1 class="hx:mt-2 hx:text-4xl hx:font-bold hx:tracking-tight">
+          {{- if eq .Data.Plural "podcast_slug" }}
+          {{ (index .Pages 0).Params.podcast | default .Title }}
+          <span class="hx:text-lg hx:font-normal hx:text-gray-500">({{ len .Pages }} {{ cond (eq (len .Pages) 1) "episódio" "episódios" }})</span>
+          {{- else }}
           #{{ .Title }}
           <span class="hx:text-lg hx:font-normal hx:text-gray-500">({{ len .Pages }} episodes)</span>
+          {{- end }}
         </h1>
+        {{- if eq .Data.Plural "podcast_slug" }}
+        <p class="vox-podcasts-back"><a href="{{ "podcasts/" | relURL }}">← Todos os podcasts</a></p>
+        {{- end }}
         <div class="hx:mt-6">
           <ul class="hx:list-none hx:p-0">
             {{ range .Pages }}

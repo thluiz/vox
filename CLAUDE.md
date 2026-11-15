@@ -20,6 +20,20 @@ vive em outro repo** (`E:/vox-content/`) e é montado via Hugo module mounts.
 | `vox-publish-windows.ps1` | Pipeline build + deploy (S3 + CloudFront) |
 | `tests/` | Suite Playwright (regressão dos features + quirks) |
 
+**Página `/podcasts/`:** taxonomia `podcast_slug` sobre o campo que o Toscanini
+(v0.2.44, `Toscanini.PodcastSlug`) grava no frontmatter — `[a-z0-9-]`, nunca
+vazio nem nome reservado do Windows. **Não** usar o `podcast:` bruto como
+taxonomia: o termo vira pasta no build e nomes como `Scott & Mark Learn To...`
+(ponto final) ou `Nul` derrubam o build no Windows (o `hugo server
+--renderToMemory` não pega isso — validar com build em disco). O Hugo casa o
+frontmatter com o nome *plural* da taxonomia, daí `podcast_slug =
+"podcast_slug"`; a URL `/podcasts/` vem de `[permalinks]`. Nome exibido = o
+`podcast:` do episódio. Layout em `_partials/custom/podcasts-list.html` (inclui
+`warnf` se algum episódio vier sem `podcast_slug`); `docs/` e `_default/`
+`taxonomy.html`/`term.html` têm um ramo `if eq .Data.Plural "podcast_slug"`.
+Mesmo programa com dois nomes que dão slugs diferentes = duas páginas: corrigir
+o `podcast` no `.json` e no `.md` no clone do Toscanini (WSL), que é a origem.
+
 `hugo.toml` define os mounts e o menu `[menu.main]`. **Cada ano novo precisa ser
 adicionado manualmente** ao bloco `[[menu.main]]` com `parent = "archive"` para
 aparecer no dropdown "Arquivo" (mobile e desktop).

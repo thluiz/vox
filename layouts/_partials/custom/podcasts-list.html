@@ -1,0 +1,95 @@
+{{/* Página /podcasts/ — taxonomia "podcast_slug" (campo que o Toscanini grava
+     no frontmatter; ver hugo.toml).
+     Ordem padrão (sem JS): por número de episódios. O botão "A–Z" reordena no
+     navegador com Intl.Collator("pt"): o sort do Hugo é por bytes e jogaria
+     "Área"/"É Sobre Isso" para depois do Z.
+     Podcasts com 1 episódio ficam num <details> recolhido no fim.
+     Nome exibido = `podcast:` do episódio mais recente do termo. */}}
+
+{{/* Guarda: episódio com `podcast:` mas sem `podcast_slug:` fica fora desta
+     página. Só acontece com .md renderizado antes do Toscanini v0.2.44 —
+     corrigir na origem (backfill), não aqui. */}}
+{{- $missing := slice -}}
+{{- range site.RegularPages -}}
+  {{- if and .Params.podcast (not .Params.podcast_slug) -}}
+    {{- $missing = $missing | append .File.Path -}}
+  {{- end -}}
+{{- end -}}
+{{- with $missing -}}
+  {{- warnf "[vox] %d episódio(s) com podcast: e sem podcast_slug: (fora de /podcasts/). Ex.: %s" (len .) (delimit (first 3 .) ", ") -}}
+{{- end -}}
+
+{{- $multi := slice -}}
+{{- $single := slice -}}
+{{- $episodes := 0 -}}
+{{- range .Data.Terms.ByCount -}}
+  {{- $name := (index .Pages 0).Params.podcast | default .Page.Title -}}
+  {{- $item := dict "name" $name "count" .Count "url" .Page.RelPermalink -}}
+  {{- $episodes = add $episodes .Count -}}
+  {{- if gt .Count 1 -}}
+    {{- $multi = $multi | append $item -}}
+  {{- else -}}
+    {{- $single = $single | append $item -}}
+  {{- end -}}
+{{- end -}}
+
+<p class="vox-podcasts-summary">
+  {{ len .Data.Terms }} podcasts · {{ lang.FormatNumber 0 $episodes }} episódios
+</p>
+
+<div class="vox-podcasts-sort" role="group" aria-label="Ordenar podcasts">
+  <span>Ordenar:</span>
+  <button type="button" data-sort="count" aria-pressed="true">Mais episódios</button>
+  <button type="button" data-sort="name" aria-pressed="false">A–Z</button>
+</div>
+
+<ul class="vox-podcasts-list" data-podcasts-list>
+  {{- partial "custom/podcasts-items.html" $multi -}}
+</ul>
+
+{{- with $single }}
+  <details class="vox-podcasts-single">
+    <summary>Outros {{ len . }} podcasts, com 1 episódio cada</summary>
+    <ul class="vox-podcasts-list" data-podcasts-list>
+      {{- partial "custom/podcasts-items.html" . -}}
+    </ul>
+  </details>
+{{- end }}
+
+<script>
+(function () {
+  var KEY = "vox-podcasts-sort";
+  var buttons = document.querySelectorAll(".vox-podcasts-sort button");
+  var lists = document.querySelectorAll("[data-podcasts-list]");
+  var collator = new Intl.Collator("pt", { sensitivity: "base", numeric: true });
+
+  function byName(a, b) {
+    return collator.compare(a.dataset.name.replace(/^[^\p{L}\p{N}]+/u, ""),
+                            b.dataset.name.replace(/^[^\p{L}\p{N}]+/u, ""));
+  }
+  function byCount(a, b) {
+    return (b.dataset.count - a.dataset.count) || byName(a, b);
+  }
+  function apply(mode) {
+    var cmp = mode === "name" ? byName : byCount;
+    lists.forEach(function (ul) {
+      Array.prototype.slice.call(ul.children).sort(cmp)
+        .forEach(function (li) { ul.appendChild(li); });
+    });
+    buttons.forEach(function (b) {
+      b.setAttribute("aria-pressed", String(b.dataset.sort === mode));
+    });
+  }
+
+  buttons.forEach(function (b) {
+    b.addEventListener("click", function () {
+      apply(b.dataset.sort);
+      try { localStorage.setItem(KEY, b.dataset.sort); } catch (e) {}
+    });
+  });
+
+  var saved = null;
+  try { saved = localStorage.getItem(KEY); } catch (e) {}
+  if (saved === "name") apply("name");
+})();
+</script>

@@ -158,3 +158,22 @@ body { color: #4e4e4e; }
   .vox-tr-line .vox-tr-time { display: block; margin-bottom: 0.1rem; }
 }
 
+
+/* /podcasts/ — lista da taxonomia "podcast" (layouts/_partials/custom/podcasts-list.html) */
+.vox-podcasts-summary { margin-top: 0.5rem; color: #6b7280; font-size: 0.9rem; }
+:is(.dark) .vox-podcasts-summary { color: #9ca3af; }
+.vox-podcasts-sort { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin: 1.25rem 0 1rem; font-size: 0.85rem; }
+.vox-podcasts-sort button { padding: 0.3rem 0.75rem; border-radius: 0.375rem; background: rgba(143,159,169,0.15); color: inherit; cursor: pointer; }
+.vox-podcasts-sort button:hover { background: rgba(143,159,169,0.3); }
+.vox-podcasts-sort button[aria-pressed="true"] { background: #2563eb; color: #fff; }
+.vox-podcasts-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); column-gap: 1.5rem; }
+.vox-podcasts-list li { display: flex; justify-content: space-between; align-items: baseline; gap: 0.75rem; padding: 0.4rem 0; border-bottom: 1px solid rgba(143,159,169,0.2); min-width: 0; }
+.vox-podcasts-list a { overflow-wrap: anywhere; }
+.vox-podcasts-list a:hover { text-decoration: underline; }
+.vox-podcasts-count { flex-shrink: 0; font-size: 0.8rem; color: #6b7280; font-variant-numeric: tabular-nums; }
+:is(.dark) .vox-podcasts-count { color: #9ca3af; }
+.vox-podcasts-single { margin-top: 2rem; }
+.vox-podcasts-single summary { cursor: pointer; font-weight: 600; margin-bottom: 0.75rem; }
+.vox-podcasts-back { margin-top: 0.5rem; font-size: 0.85rem; }
+.vox-podcasts-back a:hover { text-decoration: underline; }
+.vox-footer-site { font-size: 0.8rem; }

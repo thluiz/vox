@@ -1,0 +1,7 @@
+{{/* Itens da lista de /podcasts/ — recebe slice de dict {name, count, url}. */}}
+{{- range . -}}
+  <li data-name="{{ .name }}" data-count="{{ .count }}">
+    <a href="{{ .url }}">{{ .name }}</a>
+    <span class="vox-podcasts-count">{{ .count }}</span>
+  </li>
+{{- end -}}

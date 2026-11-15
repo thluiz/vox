@@ -3,6 +3,10 @@
     {{ partial "sidebar.html" (dict "context" . "disableSidebar" true "displayPlaceholder" true) }}
     <article class="hx:w-full hx:break-words hx:flex hx:min-h-[calc(100vh-var(--navbar-height))] hx:min-w-0 hx:justify-center hx:pb-8">
       <main id="content" class="hx:w-full hx:min-w-0 hextra-max-content-width hx:px-6 hx:pt-4 hx:md:px-12">
+        {{- if eq .Data.Plural "podcast_slug" }}
+        <h1 class="hx:mt-2 hx:text-4xl hx:font-bold hx:tracking-tight">Podcasts</h1>
+        {{ partial "custom/podcasts-list.html" . }}
+        {{- else }}
         <h1 class="hx:mt-2 hx:text-4xl hx:font-bold hx:tracking-tight">{{ .Title }}</h1>
         <div class="hx:mt-6 hx:flex hx:flex-wrap hx:gap-2">
           {{ range .Data.Terms.ByCount }}
@@ -13,6 +17,7 @@
             </a>
           {{ end }}
         </div>
+        {{- end }}
       </main>
     </article>
   </div>

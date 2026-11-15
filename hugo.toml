@@ -48,6 +48,20 @@ enableRobotsTXT = false
 
 [taxonomies]
   tag = "tags"
+  # Página /podcasts/: taxonomia sobre `podcast_slug:`, que o Toscanini
+  # (Toscanini.PodcastSlug, v0.2.44) grava no frontmatter — [a-z0-9-], nunca
+  # vazio nem nome reservado do Windows. NÃO usar o `podcast:` bruto: o termo
+  # vira pasta no build e "Scott & Mark Learn To..." / "Nul" derrubam o build
+  # no Windows. O Hugo casa o frontmatter com o nome PLURAL da taxonomia, daí
+  # singular = plural; a URL /podcasts/ vem de [permalinks]. O nome exibido é
+  # o `podcast:` do episódio (layouts/_partials/custom/podcasts-list.html).
+  podcast_slug = "podcast_slug"
+
+[permalinks]
+  [permalinks.taxonomy]
+    podcast_slug = "/podcasts/"
+  [permalinks.term]
+    podcast_slug = "/podcasts/:contentbasename/"
 
 [params]
   description = "Vox — curadoria de podcasts e artigos"
@@ -68,14 +82,19 @@ enableRobotsTXT = false
 
 [menu]
   [[menu.main]]
+    name = "Podcasts"
+    url = "/podcasts/"
+    weight = 1
+
+  [[menu.main]]
     name = "Tags"
     url = "/tags/"
-    weight = 1
+    weight = 2
 
   [[menu.main]]
     name = "Arquivo"
     identifier = "archive"
-    weight = 2
+    weight = 3
 
   [[menu.main]]
     name = "2026"

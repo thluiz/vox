@@ -41,10 +41,17 @@
   {{- if or $podcast $meta.author (gt (len $categoryParts) 0) }}
     <div class="vox-footer-identity">
       {{- with $podcast }}
-        {{- if $meta.podcast_site -}}
-          <strong><a href="{{ $meta.podcast_site }}">{{ . }}</a></strong>
+        {{- /* Nome → página do podcast no Vox (/podcasts/<podcast_slug>/, taxonomia
+             "podcast_slug"); o site oficial do podcast vira link secundário. */ -}}
+        {{- $termURL := "" -}}
+        {{- with $.GetTerms "podcast_slug" }}{{ $termURL = (index . 0).RelPermalink }}{{ end -}}
+        {{- if $termURL -}}
+          <strong><a href="{{ $termURL }}">{{ . }}</a></strong>
         {{- else -}}
           <strong>{{ . }}</strong>
+        {{- end -}}
+        {{- with $meta.podcast_site }}
+          <span class="vox-footer-muted vox-footer-site">(<a href="{{ . }}">site</a>)</span>
         {{- end -}}
       {{- end }}
       {{- with $meta.author }} — {{ . }}{{- end }}
