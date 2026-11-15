@@ -8,6 +8,30 @@ and an explorer sidebar organised by year/week.
 
 ---
 
+## v3.2.0 — 2026-11-15 — Página de podcasts (/podcasts)
+
+Lista dos programas do arquivo, com uma página por podcast, para achar os episódios de um programa sem
+depender da navegação por data nem descobrir qual tag ele usa.
+
+- **`/podcasts/`:** 534 programas, ordenados por número de episódios (ordem gerada pelo Hugo, funciona sem
+  JS) ou de A a Z (botão; reordena no navegador com `Intl.Collator("pt")`, porque o sort do Hugo é por
+  bytes e jogaria "Área" para depois do Z). A escolha fica no `localStorage`. Podcasts com um episódio só
+  ficam num bloco recolhido no fim.
+- **`/podcasts/<slug>/`:** episódios do programa, com o nome original e link de volta. O rodapé do
+  episódio passa a levar o nome do podcast a essa página; o site oficial vira um link "(site)".
+- **Menu:** Podcasts · Tags · Arquivo.
+- **Taxonomia `podcast_slug`:** campo gravado pelo Toscanini v0.2.44 (`Toscanini.PodcastSlug`), só
+  `[a-z0-9-]`, nunca vazio nem nome reservado do Windows. A primeira versão usava o `podcast:` bruto e o
+  build caiu: o termo vira pasta em `public/` e `Scott & Mark Learn To...` (ponto final) é pasta inválida
+  no Windows. O `hugo server --renderToMemory` não pega esse tipo de erro; validar com build em disco.
+  Os 6011 episódios existentes receberam a linha no `vox-content` (só ela; sem re-renderizar).
+- **Guardas:** `warnf` no build se algum episódio vier sem `podcast_slug`; `tests/podcasts.spec.ts`
+  cobre ordenação, persistência, link do rodapé e falha se alguma URL de podcast sair de `[a-z0-9-]`.
+- **Conteúdo:** "Boa Noite Internet (private feed for …)" virou "Boa Noite Internet" em 5 episódios
+  (o nome do feed privado levava um e-mail para as páginas).
+
+---
+
 ## v3.1.0 — 2026-11-09 — Vox privado (/privado)
 
 Área privada no próprio vox.thluiz.com para material que não pode ir ao site público (cursos e aulas
