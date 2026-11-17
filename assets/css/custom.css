@@ -177,3 +177,12 @@ body { color: #4e4e4e; }
 .vox-podcasts-back { margin-top: 0.5rem; font-size: 0.85rem; }
 .vox-podcasts-back a:hover { text-decoration: underline; }
 .vox-footer-site { font-size: 0.8rem; }
+
+/* Pagefind excerpts wrap matches in <mark>; mirror Hextra .hextra-search-match */
+.hextra-search-excerpt mark {
+  background: transparent;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 2px;
+}

@@ -1,0 +1,8 @@
+{{- /* Pagefind filters/meta for an episode page. Empty spans with the value in the
+     attribute, so no text leaks into the result excerpt. Rendered inside the
+     data-pagefind-body element. */ -}}
+{{- if .IsPage -}}
+  {{- with .Params.lang }}<span data-pagefind-filter="lang:{{ . }}"></span>{{ end -}}
+  {{- with .Params.podcast }}<span data-pagefind-filter="podcast:{{ . }}"></span>{{ end -}}
+  {{- with .Date }}<span data-pagefind-filter="year:{{ .Format "2006" }}"></span><span data-pagefind-meta="date:{{ .Format "2006-01-02" }}"></span>{{ end -}}
+{{- end -}}

@@ -28,7 +28,10 @@
         </div>
         {{ end }}
 
-        <div class="content">
+        {{- /* Pagefind indexes only data-pagefind-body: the chrome around it
+             (vox-meta, tags, episode footer) stays out of excerpts. */ -}}
+        <div class="content"{{ if .IsPage }} data-pagefind-body{{ end }}>
+          {{ partial "custom/pagefind-meta.html" . }}
           {{ if .Title }}
           <h1 class="vox-title">{{ .Title }}</h1>
           {{ end }}
