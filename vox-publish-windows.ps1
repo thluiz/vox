@@ -204,6 +204,21 @@ if ($SkipBuild) {
             git -C $HEXTRA_DIR apply --reverse --ignore-whitespace $p.FullName 2>$null
         }
     }
+
+    # Índice de busca (Pagefind). Apagado antes: --cleanDestinationDir já limparia,
+    # mas um pagefind/ velho nunca pode sobreviver a um índice novo (chunks órfãos
+    # iriam ao S3). Se falhar, aborta ANTES do deploy: um pagefind/ ausente seria
+    # lido como "deletado" e derrubaria a busca no site inteiro.
+    Write-Host "[vox] Pagefind..."
+    $pagefindDir = Join-Path $VOX_HUGO "public\pagefind"
+    if (Test-Path $pagefindDir) { Remove-Item $pagefindDir -Recurse -Force }
+    npx --no-install pagefind --site (Join-Path $VOX_HUGO "public") 2>&1 | ForEach-Object { Write-Host "  $_" }
+    if ($LASTEXITCODE -ne 0) {
+        throw "[vox] Pagefind falhou (exit $LASTEXITCODE) — abortando deploy"
+    }
+    if (-not (Test-Path (Join-Path $pagefindDir "pagefind.js"))) {
+        throw "[vox] Pagefind não gerou public\pagefind\pagefind.js — abortando deploy"
+    }
 }
 
 # Deploy S3 + CloudFront — diff por manifest SHA256 do public/ inteiro
@@ -343,10 +358,20 @@ public static extern bool CreateHardLink(string lpFileName, string lpExistingFil
                 # stderr do aws.exe não entra no transcript se não passar pelo
                 # pipeline do PowerShell — sem isso, erros do upload somem do log
                 $ErrorActionPreference = 'Continue'
-                & $aws s3 cp $staging $bucket --recursive `
+                # Pagefind: index/, fragment/ e filter/ têm hash no nome (imutáveis);
+                # os arquivos do topo de pagefind/ (pagefind.js, worker, wasm, entry)
+                # mantêm o nome entre builds e ficam com o cache curto de sempre.
+                $pfHashed = @('pagefind/index/*', 'pagefind/fragment/*', 'pagefind/filter/*')
+                $excludes = $pfHashed | ForEach-Object { '--exclude'; $_ }
+                $includes = $pfHashed | ForEach-Object { '--include'; $_ }
+                & $aws s3 cp $staging $bucket --recursive @excludes `
                     --cache-control $cacheCtrl --only-show-errors 2>&1 |
                     ForEach-Object { Write-Host "  [aws] $_" }
                 $cpExit = $LASTEXITCODE
+                & $aws s3 cp $staging $bucket --recursive --exclude '*' @includes `
+                    --cache-control 'public, max-age=31536000, immutable' --only-show-errors 2>&1 |
+                    ForEach-Object { Write-Host "  [aws] $_" }
+                if ($cpExit -eq 0) { $cpExit = $LASTEXITCODE }
             } finally {
                 $ErrorActionPreference = $prevEap
                 $env:AWS_CONFIG_FILE = $prevCfg

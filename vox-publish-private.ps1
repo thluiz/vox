@@ -127,6 +127,16 @@ try {
         if ($LASTEXITCODE -ne 0) { throw "build Hugo falhou (exit $LASTEXITCODE)" }
     } finally { Remove-Item -Force -ErrorAction SilentlyContinue $tmpCfg }
 
+    # Índice de busca (Pagefind) do site privado: separado do público, vai no mesmo
+    # prefixo do guid. Falha aborta antes do sync --delete (um pagefind/ ausente
+    # apagaria a busca do bucket).
+    Write-Host '[vox-private] Pagefind...'
+    $pfDir = Join-Path $OutDir 'pagefind'
+    if (Test-Path $pfDir) { Remove-Item $pfDir -Recurse -Force }
+    npx --no-install pagefind --site $OutDir 2>&1 | ForEach-Object { Write-Host "  $_" }
+    if ($LASTEXITCODE -ne 0) { throw "pagefind falhou (exit $LASTEXITCODE)" }
+    if (-not (Test-Path (Join-Path $pfDir 'pagefind.js'))) { throw 'pagefind não gerou pagefind.js' }
+
     $pageCount = (Get-ChildItem $OutDir -Recurse -Filter index.html -File | Measure-Object).Count
     if ($pageCount -lt 1) { throw 'build não gerou nenhuma página' }
     Write-Host "[vox-private] $pageCount página(s) geradas"

@@ -91,6 +91,13 @@ enableRobotsTXT = false
     url = "/tags/"
     weight = 2
 
+  # Caixa de busca (Pagefind) na navbar; sem esta entrada ela só existia no menu mobile.
+  [[menu.main]]
+    name = "Search"
+    weight = 4
+    [menu.main.params]
+      type = "search"
+
   [[menu.main]]
     name = "Arquivo"
     identifier = "archive"

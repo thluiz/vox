@@ -21,14 +21,32 @@
   let seq = 0;
   let timer = null;
 
+  // The index has one language per <html lang> (Portuguese episodes are "pt",
+  // everything else "en"), each with its own stemmer. Pagefind picks the language
+  // from the page it runs on, so to search the whole archive from any page we
+  // create one instance per language, setting <html lang> just long enough for
+  // createInstance to read it.
   function load() {
     if (!loading) {
-      loading = import(base + 'pagefind.js').then(async (pf) => {
-        await pf.options({ baseUrl: base.replace(/pagefind\/$/, '') });
-        pf.init();
-        pagefind = pf;
-        return pf;
-      });
+      loading = (async () => {
+        const pf = await import(base + 'pagefind.js');
+        const entry = await (await fetch(base + 'pagefind-entry.json')).json();
+        const langs = Object.keys(entry.languages || {});
+        const own = document.documentElement.lang;
+        const instances = [];
+        for (const lang of langs.length ? langs : [own]) {
+          document.documentElement.lang = lang;
+          try {
+            const inst = await pf.createInstance();  // derives its base path from the pagefind.js URL
+            await inst.options({ baseUrl: base.replace(/pagefind\/$/, '') });
+            instances.push(inst);
+          } finally {
+            document.documentElement.lang = own;
+          }
+        }
+        pagefind = instances;
+        return instances;
+      })();
       loading.catch((err) => { console.warn('[vox] pagefind unavailable', err); loading = null; });
     }
     return loading;
@@ -148,9 +166,10 @@
     if (!query.trim()) { hide(); return; }
     let pf;
     try { pf = pagefind || await load(); } catch (_) { return; }
-    const res = await pf.search(query);
+    const found = await Promise.all(pf.map((inst) => inst.search(query)));
     if (mine !== seq) return; // a newer keystroke superseded this query
-    const data = await Promise.all(res.results.slice(0, MAX_RESULTS).map((r) => r.data()));
+    const top = found.flatMap((r) => r.results).sort((x, y) => y.score - x.score).slice(0, MAX_RESULTS);
+    const data = await Promise.all(top.map((r) => r.data()));
     if (mine !== seq) return;
     render(a, data);
   }

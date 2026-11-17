@@ -6,12 +6,10 @@ import { test, expect } from '@playwright/test';
 
 const PAGE = '/2026/04/W14/303-jamil-chade/';
 
-// The only search box today lives in the mobile sidebar (the navbar has no
-// `type = "search"` menu entry), so test at phone width and open the menu.
-test.use({ viewport: { width: 390, height: 800 } });
-
+// Desktop: search box in the navbar. Mobile: inside the hamburger sidebar.
 async function openMenu(page) {
-  await page.locator('.hextra-hamburger-menu').click();
+  const burger = page.locator('.hextra-hamburger-menu');
+  if (await burger.isVisible()) await burger.click();
 }
 
 test('search returns results with highlighted excerpts and navigates', async ({ page }) => {
@@ -40,7 +38,7 @@ test('search shows a message when nothing matches', async ({ page }) => {
   await page.goto(PAGE);
   await openMenu(page);
   const input = page.locator('.hextra-search-input:visible').first();
-  await input.fill('zzqxkjwvv');
+  await input.fill('qwertyuu');
   await expect(page.locator('.hextra-search-no-result')).toBeVisible({ timeout: 10_000 });
 });
 
@@ -64,4 +62,37 @@ test('no page downloads the legacy FlexSearch index', async ({ page }) => {
   await page.locator('.hextra-search-input:visible').first().click();
   await page.waitForTimeout(500);
   expect(urls.filter(u => /search-data\.json|flexsearch/.test(u))).toEqual([]);
+});
+
+test('mobile: search works from the hamburger menu', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 800 });
+  await page.goto(PAGE);
+  await page.locator('.hextra-hamburger-menu').click();
+  const input = page.locator('.hextra-search-input:visible').first();
+  await input.fill('jornalismo');
+  await expect(page.locator('.hextra-search-results:visible li a').first()).toBeVisible({ timeout: 10_000 });
+});
+
+test('Portuguese stemming: singular and plural find the same kind of pages', async ({ page }) => {
+  await page.goto(PAGE);
+  const input = page.locator('.hextra-search-input:visible').first();
+  const count = async (q: string) => {
+    await input.fill('');
+    await input.fill(q);
+    const items = page.locator('.hextra-search-results:visible li a');
+    await expect(items.first()).toBeVisible({ timeout: 10_000 });
+    await page.waitForTimeout(400);
+    return items.count();
+  };
+  const plural = await count('jornalistas');
+  const singular = await count('jornalista');
+  expect(plural).toBeGreaterThan(0);
+  expect(singular).toBe(plural); // same stem => same results
+});
+
+test('searching from an English page also finds Portuguese episodes', async ({ page }) => {
+  await page.goto('/2026/11/W44/heres-what-id-learn-instead-of-coding-in-2027/');
+  const input = page.locator('.hextra-search-input:visible').first();
+  await input.fill('jornalismo');
+  await expect(page.locator('.hextra-search-results:visible li a').first()).toBeVisible({ timeout: 10_000 });
 });
