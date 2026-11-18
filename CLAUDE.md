@@ -14,7 +14,7 @@ vive em outro repo** (`E:/vox-content/`) e é montado via Hugo module mounts.
 | `E:/vox-content/` (repo separado) | Conteúdo: `YYYY/MM/Wnn/<slug>.md` + `<slug>.json` por episódio |
 | `E:/hextra/` | Tema Hextra (NÃO modificar — usado como upstream) |
 | `content-home/` | Páginas próprias do Vox que sobrepõem `content/` (ex: `_index.md` da home, `transcript/`) |
-| `layouts/` | Overrides de templates do Hextra. Os principais: `_partials/custom/episode-footer.html`, `transcript/list.html`, `_partials/scripts/search.html` |
+| `layouts/` | Overrides de templates do Hextra. Os principais: `_partials/custom/episode-footer.html`, `transcript/list.html`, `_partials/scripts/search.html` (busca Pagefind), `baseof.html` (cópia do Hextra, só o `<html lang>` muda) |
 | `assets/css/custom.css` | Estilos custom (concatenado pelo Hextra) |
 | `static/` | Assets servidos as-is (`/js/transcript.js`, `robots.txt`) |
 | `vox-publish-windows.ps1` | Pipeline build + deploy (S3 + CloudFront) |
@@ -33,6 +33,32 @@ frontmatter com o nome *plural* da taxonomia, daí `podcast_slug =
 `taxonomy.html`/`term.html` têm um ramo `if eq .Data.Plural "podcast_slug"`.
 Mesmo programa com dois nomes que dão slugs diferentes = duas páginas: corrigir
 o `podcast` no `.json` e no `.md` no clone do Toscanini (WSL), que é a origem.
+
+**Busca:** Pagefind (v1.6.0, devDependency), não o FlexSearch do Hextra. O
+índice é estático, gerado **depois** do `hugo` (`public/pagefind/`) e carregado
+sob demanda; a primeira busca baixa ~150 KB, as seguintes dezenas de KB. O
+FlexSearch baixava um `search-data.json` de 53 MB (18,5 MB gzip) e reindexava no
+navegador a cada visita.
+- `layouts/_default/single.html` e `layouts/docs/single.html` (os episódios usam
+  o `docs/`; **mudar um, mudar o outro**) marcam `<div class="content">` com
+  `data-pagefind-body`; páginas sem ele (listas, tags) ficam fora do índice. Só
+  o que está dentro do body é indexado, então `vox-meta`, tags e rodapé não
+  poluem os trechos. Filtros (`lang`, `podcast`, `year`) e `date` saem de spans
+  vazios em `_partials/custom/pagefind-meta.html` (valor no atributo, sem texto).
+- `<html lang>`: o Pagefind faz um índice e escolhe o stemmer por `<html lang>`.
+  `layouts/baseof.html` põe `pt` nos episódios `lang: pt` e deixa o resto `en`
+  (episódios em es/fr/etc. ficam no índice `en`). **Ao atualizar o Hextra,
+  re-diffar com `hextra/layouts/baseof.html`.**
+- `assets/js/pagefind-search.js` substitui o `flexsearch.js` do tema mantendo o
+  markup `.hextra-search-*`. O Pagefind só busca no idioma da página, então cria
+  uma instância por idioma (trocando `<html lang>` só durante o `createInstance`;
+  não passar `basePath`, que quebra a detecção) e mescla por `score`. Debounce de
+  150 ms, descarta respostas fora de ordem.
+- A caixa de busca da navbar vem da entrada `type = "search"` do `[menu.main]`
+  (`hugo.toml` e `hugo.private.toml`). Sem ela só existia a do menu mobile.
+- O `hugo server` **não gera** o índice. Para testar busca: `hugo` + `pagefind`
+  + servidor estático sobre `public/` e `VOX_TEST_BASE_URL=http://localhost:<porta>`.
+- Texto sem sentido pode achar páginas no índice PT (stemmer); `qwertyuu` dá 0.
 
 `hugo.toml` define os mounts e o menu `[menu.main]`. **Cada ano novo precisa ser
 adicionado manualmente** ao bloco `[[menu.main]]` com `parent = "archive"` para
@@ -59,6 +85,16 @@ pwsh -NoProfile -File vox-publish-windows.ps1                       # manual: se
 pwsh -NoProfile -File vox-publish-windows.ps1 -GateOnNewEpisodes    # scheduler horário
 pwsh -NoProfile -File vox-publish-windows.ps1 -S3Sync               # s3 sync --delete (drift)
 ```
+
+**Pagefind no publish:** os dois scripts rodam o binário nativo
+`node_modules/@pagefind/windows-x64/bin/pagefind_extended.exe` depois do `hugo`
+(a tarefa agendada **não tem `npx`/node no PATH** — a 1ª versão com `npx` falhou
+no privado). Apagam `pagefind/` antes e **abortam o deploy se falhar** (um
+`pagefind/` ausente seria lido como "deletado" e derrubaria a busca). Depois de
+clonar ou trocar de máquina: `npm install` em `E:\vox`. No público, `index/`,
+`fragment/` e `filter/` (nome com hash) sobem com `Cache-Control: immutable`; os
+arquivos do topo de `pagefind/` (`pagefind.js`, worker, wasm, entry) têm nome
+fixo e ficam em `max-age=3600`. O privado usa `private, max-age=300` para tudo.
 
 O upload é **sempre por diferença**: todo publish calcula o SHA256 de cada
 arquivo do `public/` (local, paralelo, ~1-2 min para ~58k arquivos), compara
@@ -114,9 +150,10 @@ Para rodar contra produção em vez de local:
 VOX_TEST_BASE_URL=https://vox.thluiz.com npm test
 ```
 
-3 specs em `tests/`:
+5 specs em `tests/` (além de `transcript`, `i18n`, `search` e `console`, há `podcasts.spec.ts`, sobre `/podcasts/`):
 - **`transcript.spec.ts`** — `/transcript/?json=...`: TOC montada do `timeline[]`, lazy render por `<details>` toggle, link no footer do episódio, erro se faltar `?json=`
 - **`i18n.spec.ts`** — labels em PT (ep `lang: "pt"`) vs EN (ep `lang: "en"`)
+- **`search.spec.ts`** — busca Pagefind (precisa de build com índice, ver acima): resultados com `<mark>`, navegação, sem resultado, atalho `/`, mobile, stemming PT, busca cruzada en↔pt, não baixa o índice antigo
 - **`console.spec.ts`** — zero erros JS no console (cobre os quirks do Hextra abaixo — se algum reaparecer, este teste falha)
 
 `fullyParallel: true`, ~3.4s no host. Não usar o MCP `mcp__plugin_autoimplement_playwright-test__*` — ele tem expectativas próprias de seed/projeto que não casam com este config; usar `npx playwright test` direto.
@@ -128,13 +165,15 @@ VOX_TEST_BASE_URL=https://vox.thluiz.com npm test
 Quando atualizar o tema (`E:/hextra/`), **rodar `npm test` antes e depois** —
 se os quirks abaixo voltarem, os overrides em `layouts/` são a primeira pista.
 
-### 1. `flexsearch.js` crasha em página sem `.hextra-search-wrapper`
+### 1. (histórico) `flexsearch.js` crashava em página sem `.hextra-search-wrapper`
 
 **Sintoma:** `TypeError: Cannot destructure property 'inputElement' of 'getActiveSearchElement(...)' as it is undefined`.
 **Causa:** `getActiveSearchElement()` retorna `undefined` se 0 ou >1 wrappers
 visíveis; chamadores fazem destructure sem null-check.
 **Workaround:** `layouts/_partials/scripts/search.html` (override) pula o
-bootstrap quando `.Params.excludeSearch == true`.
+bootstrap quando `.Params.excludeSearch == true`. O FlexSearch saiu (ver
+Busca); o `pagefind-search.js` mantém o mesmo guarda (`active()` devolve `null`
+sem wrapper visível), e o override continua pulando a página com `excludeSearch`.
 
 ### 2. `menu.js` crasha em página sem `.hextra-sidebar-container`
 

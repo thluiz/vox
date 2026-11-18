@@ -8,6 +8,28 @@ and an explorer sidebar organised by year/week.
 
 ---
 
+## v3.3.0 — 2026-11-17 — Busca com Pagefind
+
+Troca do FlexSearch do Hextra por Pagefind (mesma troca feita no Scholion).
+
+- **Antes:** a busca baixava `en.search-data.json` inteiro (53 MB, 18,5 MB gzip, 6.077 entradas),
+  reindexava no navegador e rodava a cada `keyup`. Existia só no menu mobile: a navbar do desktop
+  não tinha caixa de busca.
+- **Agora:** índice estático em pedaços (`pagefind --site`), carregado sob demanda; 6.088 páginas
+  em dois idiomas (`pt` 3.182, `en` 2.906). Debounce de 150 ms, trechos com `<mark>`, busca em
+  qualquer página alcança os dois idiomas, e o stemmer PT liga "jornalista" a "jornalistas".
+  Caixa de busca na navbar do desktop (entrada `type = "search"` no menu).
+- **Publish:** `vox-publish-windows.ps1` e `vox-publish-private.ps1` rodam o `pagefind` depois do
+  `hugo` e abortam se falhar; `index/`, `fragment/` e `filter/` sobem com cache `immutable` no
+  público. Binário nativo do pacote, porque a tarefa agendada não tem `npx` (a 1ª rodada do privado
+  falhou por isso).
+- **Templates:** `data-pagefind-body` em `_default/single.html` e `docs/single.html`, filtros em
+  `custom/pagefind-meta.html`, `baseof.html` próprio com `<html lang>` por episódio.
+- **Testes:** `tests/search.spec.ts` (9 testes).
+- Primeiro publish subiu 39.199 arquivos (todos os HTMLs mudam com o `<html lang>`).
+
+---
+
 ## v3.2.0 — 2026-11-15 — Página de podcasts (/podcasts)
 
 Lista dos programas do arquivo, com uma página por podcast, para achar os episódios de um programa sem

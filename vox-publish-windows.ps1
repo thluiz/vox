@@ -212,7 +212,11 @@ if ($SkipBuild) {
     Write-Host "[vox] Pagefind..."
     $pagefindDir = Join-Path $VOX_HUGO "public\pagefind"
     if (Test-Path $pagefindDir) { Remove-Item $pagefindDir -Recurse -Force }
-    npx --no-install pagefind --site (Join-Path $VOX_HUGO "public") 2>&1 | ForEach-Object { Write-Host "  $_" }
+    # Binário nativo do pagefind (devDependency): as tarefas agendadas não têm node/npx
+    # no PATH, então nada de 'npx'. Instalado por 'npm install' em E:\vox.
+    $pagefindExe = Join-Path $VOX_HUGO "node_modules\@pagefind\windows-x64\bin\pagefind_extended.exe"
+    if (-not (Test-Path $pagefindExe)) { throw "[vox] $pagefindExe não existe — rode npm install em $VOX_HUGO" }
+    & $pagefindExe --site (Join-Path $VOX_HUGO "public") 2>&1 | ForEach-Object { Write-Host "  $_" }
     if ($LASTEXITCODE -ne 0) {
         throw "[vox] Pagefind falhou (exit $LASTEXITCODE) — abortando deploy"
     }
